@@ -1,0 +1,10 @@
+* log on(requires post request + cookies or something?)
+* connect to and watch chat
+** Loop:
+*** detect "new match A vs B" notification, prompting a bet.
+*** query a database/algorithm to determine likely winner
+**** place bet
+*** detect/store given odds ratio(during match)
+*** Detect game result
+*** check/update balance when match is called.
+*** wait for new match announcement
