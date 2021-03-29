@@ -152,7 +152,8 @@ func main() {
 		return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
 	}
 	var zDataBytes = []byte("")
-	var zData map[string]interface{}
+	var zData map[string]json.RawMessage
+
 	updateZdata := func() { // TODO: refactor updateZdata + updateState?
 		// fetch zdata json
 		httpClient := http.Client{Timeout: time.Second * 10}
@@ -178,17 +179,23 @@ func main() {
 		if string(body) != string(zDataBytes) {
 			err = json.Unmarshal(body, &zData)
 			if err != nil || zData[uid] == nil {
+				log.Println(" -- Error: ", err)
 				return // must not have placed a bet yet, or something went wrong with the json.
 			}
-			b := (zData[uid].(map[string]interface{})["b"].(string)) // JSON BLACK MAGICKS
-			profit := strToInt(b) - strToInt(currentBal)
-			currentBal = b
+			var userzData map[string]string
+			err = json.Unmarshal(zData[uid], &userzData)
+			if err != nil {
+				log.Println(" -- Error: ", err)
+				return
+			}
+
+			profit := strToInt(userzData["b"]) - strToInt(currentBal)
+			currentBal = userzData["b"]
 			log.Printf("Balance updated: %s Change: %d", currentBal, profit)
 			if err != nil {
 				return
 			}
 		}
-
 	}
 	updateZdata()
 	lastStateBytes := []byte("")
