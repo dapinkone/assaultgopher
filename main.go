@@ -128,14 +128,15 @@ func main() {
 				return "Bets are " + ts.Status
 			}
 		}()
-
-		log.Printf("%s(%s)\tvs\t%s(%s)\t%s (%.2f:1)\tx:%d %s\tAlert: '%s'",
+		log.Printf("%s(%s)\tvs\t%s(%s)\t%s (%.2f:1)\tx:%d %s",
 			ts.P1name, ts.P1total,
 			ts.P2name, ts.P2total,
 			betstatus, odds,
-
-			ts.X, ts.Remaining, ts.Alert,
+			ts.X, ts.Remaining,
 		)
+		if ts.Alert != "" {
+			log.Printf("Alert: %s", ts.Alert)
+		}
 	}
 
 	// need to log in and hit up the main page to get our balance and get our session ids to bet.
