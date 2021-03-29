@@ -93,14 +93,14 @@ func main() {
 
 	currentBal := "1000" // default value?
 
-	c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
-		if e.Attr("value") != " " && e.Text != currentBal {
-			currentBal = e.Attr("value")
-			log.Println("Bal:", currentBal)
-		}
-	})
+	// c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
+	// 	if e.Attr("value") != " " && e.Text != currentBal {
+	// 		currentBal = e.Attr("value")
+	// 		log.Println("Bal:", currentBal)
+	// 	}
+	// })
 	uid := ""
-	c.OnHTML("#u", func(e *colly.HTMLElement) {
+	c.OnHTML("#u", func(e *colly.HTMLElement) { // this only shows up on startup.
 		if e.Attr("value") != uid {
 			uid = e.Attr("value")
 			log.Println("Uid:", uid)
@@ -147,6 +147,47 @@ func main() {
 		log.Println(cookie.Name)
 	}
 
+	t := func() string { // time in milliseconds, as a string. used by the API for something. who knows.
+		return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
+	}
+	var zDataBytes = []byte("")
+	var zData map[string]interface{}
+	updateZdata := func() { // TODO: refactor updateZdata + updateState?
+		// fetch zdata json
+		httpClient := http.Client{Timeout: time.Second * 10}
+
+		req, err := http.NewRequest(
+			http.MethodGet,
+			"https://www.saltybet.com/zdata.json?t="+t(),
+			nil,
+		)
+		res, err := httpClient.Do(req)
+		if err != nil {
+			log.Println("-- ERROR: ", err)
+			return // bail out. We'll update next time.
+		}
+		if res.Body != nil {
+			defer res.Body.Close()
+		}
+
+		body, err := ioutil.ReadAll(res.Body)
+		diaf(err)
+
+		// if the most recent json bytes != last json bytes, update using new bytes.
+		if string(body) != string(zDataBytes) {
+			err = json.Unmarshal(body, &zData)
+			if err != nil || zData[uid] == nil {
+				return // must not have placed a bet yet, or something went wrong with the json.
+			}
+			currentBal = (zData[uid].(map[string]interface{})["b"].(string)) // JSON BLACK MAGICKS
+			log.Printf("Balance updated: %s", currentBal)
+			if err != nil {
+				return
+			}
+		}
+
+	}
+	updateZdata()
 	lastStateBytes := []byte("")
 	lastState := GameState{}
 	updateState := func() {
@@ -184,6 +225,7 @@ func main() {
 			diaf(err)
 
 			if lastState.Status == "open" {
+				updateZdata() // Zdata will update our balance and whatnots.
 				// place bet!
 				// post request to /ajax_place_bet.php
 				// for now, always bet red(player1)
@@ -202,13 +244,12 @@ func main() {
 
 	}
 	updateState() // initialize our gamestate.
-
 	// for our main event loop, we're gonna connect a websocket
 	// then we do stuff when the socket passes us data.
-	t := strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
+
 	//	wsurl := "www.saltybet.com:2096/socket.io/?EIO=3&transport=websocket&t=" + t + "-0"
 
-	wsurl := "wss://www.saltybet.com:2096/socket.io/?EIO=3&transport=websocket&t=" + t + "-0"
+	wsurl := "wss://www.saltybet.com:2096/socket.io/?EIO=3&transport=websocket&t=" + t() + "-0"
 	log.Println(wsurl)
 	ws, err := gosocketio.Dial(
 		wsurl,
@@ -225,7 +266,9 @@ func main() {
 	)
 	defer ws.Close()
 	ws.On("message", func(data *gosocketio.Channel) {
+
 		updateState()
+
 	})
 
 	for { // wait forever.
