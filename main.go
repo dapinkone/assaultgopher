@@ -28,8 +28,6 @@ func main() {
 	c := colly.NewCollector()
 	c.AllowURLRevisit = true
 
-	// FIXME: keep username/password in a file. not hardcoded.
-	// TODO: Do we need to login, or even see the fight page until we bet?
 	// open up the auth.txt to get our username/password. TODO: need consult on more secure method.
 	var file, err = os.OpenFile("./auth.txt", os.O_RDONLY, 0644)
 	diaf(err)
@@ -92,15 +90,23 @@ func main() {
 	calcOdds := func(p1total string, p2total string) float64 {
 		return float64(strToInt(p1total)) / float64(strToInt(p2total))
 	}
-	// handler to check on our balance when we see the main page.
+
 	currentBal := "1000" // default value?
 
 	c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
-		if e.Text != "" && e.Text != currentBal {
-			currentBal = e.Text
+		if e.Attr("value") != " " && e.Text != currentBal {
+			currentBal = e.Attr("value")
 			log.Println("Bal:", currentBal)
 		}
 	})
+	uid := ""
+	c.OnHTML("#u", func(e *colly.HTMLElement) {
+		if e.Attr("value") != uid {
+			uid = e.Attr("value")
+			log.Println("Uid:", uid)
+		}
+	})
+
 	StateFrmBytes := func(b []byte) GameState {
 		s := GameState{}
 		err := json.Unmarshal(b, &s)
@@ -132,11 +138,11 @@ func main() {
 		)
 	}
 
-	// need to log in and hit up the main page to get our balance
+	// need to log in and hit up the main page to get our balance and get our session ids to bet.
 	err = c.Visit("https://www.saltybet.com/")
 	diaf(err)
 
-	// checking cookies for sid/io, __cfduid, PHPSESSID
+	// checking cookies for __cfduid, PHPSESSID
 	for _, cookie := range c.Cookies("https://www.saltybet.com/authenticate?signin=1") {
 		log.Println(cookie.Name)
 	}
@@ -170,7 +176,8 @@ func main() {
 		body, err := ioutil.ReadAll(res.Body)
 		diaf(err)
 
-		if string(body) != string(lastStateBytes) { // if the most recent json bytes != last state json, update lastState using new bytes.
+		// if the most recent json bytes != last state json, update lastState using new bytes.
+		if string(body) != string(lastStateBytes) {
 			err = json.Unmarshal(body, &lastState)
 			prState(lastState)
 			lastStateBytes = body
@@ -191,9 +198,6 @@ func main() {
 				log.Printf("Bet placed for %s on %s!", wager, lastState.P1name)
 
 			}
-
-			///		s, _ := json.MarshalIndent(lastState, "", "\t")
-			// log.Printf("--laststates: %s+", s)
 		}
 
 	}
@@ -220,20 +224,11 @@ func main() {
 		transport.GetDefaultWebsocketTransport(),
 	)
 	defer ws.Close()
-	// ws.On("connection", func() {
-	// 	log.Println("connected.")
-	// 	ws.Emit("open", "")
-	// })
 	ws.On("message", func(data *gosocketio.Channel) {
-		//		log.Printf("Header: %+v", ws.RequestHeader())
-		//		log.Printf("message recieved. Id: %s", data.Id()) // data.Id() is probably sid
-		//		log.Printf("Full data: %+v", data)
 		updateState()
-
 	})
-	// start a main loop thread for updates
-	for {
-		//		updateState()
+
+	for { // wait forever.
 		time.Sleep(time.Second * 30)
 	}
 

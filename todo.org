@@ -33,6 +33,8 @@
 ** tournament balance is found in /ajax_tournament_start.php
 ** exhibition mode something or other is at /ajax_tournament_end.php
 * what are values x, u, g, i, m and this other stuff?
+** u, b(balance), g, i, m, are hidden inputs which may or may not be filled in after login.
+
 * TODO [#A] BUG: client times out on state.json 
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
