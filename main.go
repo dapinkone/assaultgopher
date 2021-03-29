@@ -152,9 +152,16 @@ func main() {
 			"https://www.saltybet.com/state.json",
 			nil,
 		)
-		diaf(err)
+		if err != nil {
+			log.Println("-- ERROR: ", err)
+			return // bail out. We'll update next time.
+		}
+
 		res, err := httpClient.Do(req)
-		diaf(err)
+		if err != nil {
+			log.Println("-- ERROR: ", err)
+			return // bail out. We'll update next time.
+		}
 
 		if res.Body != nil {
 			defer res.Body.Close()
