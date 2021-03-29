@@ -111,10 +111,22 @@ func main() {
 	prState := func(ts GameState) {
 		odds := calcOdds(ts.P1total, ts.P2total)
 		diaf(err)
-		log.Printf("%s(%s)\tvs\t%s(%s)\tbets are %s(%.2f:1)\tx:%d %s\tAlert: '%s'",
+
+		betstatus := func() string {
+			switch ts.Status {
+			case "1":
+				return "Red Wins"
+			case "2":
+				return "Blue Wins"
+			default:
+				return "Bets are " + ts.Status
+			}
+		}()
+
+		log.Printf("%s(%s)\tvs\t%s(%s)\t%s (%.2f:1)\tx:%d %s\tAlert: '%s'",
 			ts.P1name, ts.P1total,
 			ts.P2name, ts.P2total,
-			ts.Status, odds,
+			betstatus, odds,
 
 			ts.X, ts.Remaining, ts.Alert,
 		)
