@@ -180,8 +180,10 @@ func main() {
 			if err != nil || zData[uid] == nil {
 				return // must not have placed a bet yet, or something went wrong with the json.
 			}
-			currentBal = (zData[uid].(map[string]interface{})["b"].(string)) // JSON BLACK MAGICKS
-			log.Printf("Balance updated: %s", currentBal)
+			b := (zData[uid].(map[string]interface{})["b"].(string)) // JSON BLACK MAGICKS
+			profit := strToInt(b) - strToInt(currentBal)
+			currentBal = b
+			log.Printf("Balance updated: %s Change: %d", currentBal, profit)
 			if err != nil {
 				return
 			}

@@ -26,6 +26,7 @@
 * TODO check/update balance when match is called.
 *** #b, bal or balance is found in data[u]["b"], with data being the return of get("/zdata.json?t=" + ms) referenced/shown in updateData() of /j/www-cdn-jtvnw-x.js
 *** TODO Fetch/update data accordingly.
+*** Balance is now detected on main page, but need to update it when we win or lose.
 * TODO I vaguely remember ?id= being in a url somewhere. id is the sid from the websocket. see ~line 200.
 ** ✔DONE wait for new match announcement
    CLOSED: [2021-03-29 Mon 02:03]
@@ -34,7 +35,7 @@
 ** exhibition mode something or other is at /ajax_tournament_end.php
 * what are values x, u, g, i, m and this other stuff?
 ** u, b(balance), g, i, m, are hidden inputs which may or may not be filled in after login.
-
+* TODO Store history of fights, bets, etc for training of AI/algorithms
 * TODO [#A] BUG: client times out on state.json 
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
