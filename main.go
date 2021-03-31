@@ -61,7 +61,7 @@ func (g *GameState) calcOdds() float64 {
 	return float64(strToInt(g.P1total)) / float64(strToInt(g.P2total))
 }
 
-func (g *GameState) String() string {
+func (g GameState) String() string {
 	/* implements the stringer interface on GameState, so we can use standard print stuff on it
 	   with our desired custom output */
 	odds := g.calcOdds()
@@ -84,6 +84,7 @@ func (g *GameState) String() string {
 	if g.Alert != "" {
 		a += fmt.Sprintf("Alert: %s", g.Alert)
 	}
+	//	log.Fatal(a)
 	return a
 }
 
@@ -182,9 +183,12 @@ func main() {
 		// if the most recent json bytes != last json bytes, update using new bytes.
 		if string(body) != string(zDataBytes) {
 			err = json.Unmarshal(body, &zData)
-			if err != nil || zData[uid] == nil {
+			if zData[uid] == nil {
+				return // we haven't bet
+			}
+			if err != nil {
 				log.Println(" -- Error: ", err)
-				return // must not have placed a bet yet, or something went wrong with the json.
+				return // something went wrong with the json.
 			}
 			var userzData map[string]string
 			err = json.Unmarshal(zData[uid], &userzData)
