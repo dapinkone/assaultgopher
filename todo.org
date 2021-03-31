@@ -43,3 +43,4 @@
 * TODO [#A] BUG: client times out on state.json?
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
+* TODO do we really need to query zData, or can we derive that from other places?
