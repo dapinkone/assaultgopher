@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 
+	"fmt"
 	"github.com/gocolly/colly/v2"
 	"github.com/graarh/golang-socketio"
 	"github.com/graarh/golang-socketio/transport"
@@ -16,6 +17,75 @@ import (
 	"strings"
 	"time"
 )
+
+func strToInt(s string) int {
+	clean := strings.Replace(s, ",", "", -1)
+	if clean != "" {
+		i, err := strconv.Atoi(clean)
+		diaf(err)
+		return i
+	} else {
+		return 0
+	}
+}
+
+// get game state json from
+// https://www.saltybet.com/state.json
+// it's used over here https://www.saltybet.com/j/www-cdn-jtvnw-x.js
+type GameState struct {
+	P1name  string // player 1/red's name
+	P2name  string // player 2/blue's name
+	P1total string // total $ on red, w/commas
+	P2total string // total $ on blue, w/commas
+	Status  string
+	// betting open? "1", "2", "open" "locked"
+	//  1		-p1's win.
+	//  2		-p2's win.
+	//  open  	-betting open.
+	//  locked	-betting closed.
+
+	Alert string
+	// Tournament mode start!
+	// Exhibition mode start!
+	// ?? unknown
+	// usually blank
+	X int `json:"number"`
+	// announcement of rounds until a tournament
+	// announcement of characters left in tournament bracket
+	Remaining string // String including the # of matches until the next tournament
+	Bet       uint   // how much we bet on the fight.
+	Profit    int    // how much we won or lost on the bet.
+}
+
+func (g *GameState) calcOdds() float64 {
+	return float64(strToInt(g.P1total)) / float64(strToInt(g.P2total))
+}
+
+func (g *GameState) String() string {
+	/* implements the stringer interface on GameState, so we can use standard print stuff on it
+	   with our desired custom output */
+	odds := g.calcOdds()
+	betstatus := func() string {
+		switch g.Status {
+		case "1":
+			return "Red Wins"
+		case "2":
+			return "Blue Wins"
+		default:
+			return "Bets are " + g.Status
+		}
+	}()
+	a := fmt.Sprintf("%s(%s)\tvs\t%s(%s)\t%s (%.2f:1)\tx:%d %s",
+		g.P1name, g.P1total,
+		g.P2name, g.P2total,
+		betstatus, odds,
+		g.X, g.Remaining,
+	)
+	if g.Alert != "" {
+		a += fmt.Sprintf("Alert: %s", g.Alert)
+	}
+	return a
+}
 
 func diaf(err error) {
 	if err != nil {
@@ -50,47 +120,6 @@ func main() {
 		log.Printf("rcvd %d %s", r.StatusCode, r.Request.URL)
 	})
 
-	// Check who's fighting.
-	// get game state json from
-	// https://www.saltybet.com/state.json
-	// it's used over here https://www.saltybet.com/j/www-cdn-jtvnw-x.js
-	type GameState struct {
-		P1name  string // player 1/red's name
-		P2name  string // player 2/blue's name
-		P1total string // total $ on red, w/commas
-		P2total string // total $ on blue, w/commas
-		Status  string // betting open? "1", "2", "open" "locked"
-		// 1		-p1's win.
-		// 2		-p2's win.
-		//  open	-betting open.
-		// locked	-betting closed.
-		Alert string
-		// Tournament mode start!
-		// Exhibition mode start!
-		// ?? unknown
-		// usually blank
-		X int `json:"number"`
-		//
-		Remaining string
-		// announcement of rounds until a tournament
-		// announcement of characters left in tournament bracket
-	}
-
-	strToInt := func(s string) int {
-		clean := strings.Replace(s, ",", "", -1)
-		if clean != "" {
-			i, err := strconv.Atoi(clean)
-			diaf(err)
-			return i
-		} else {
-			return 0
-		}
-	}
-
-	calcOdds := func(p1total string, p2total string) float64 {
-		return float64(strToInt(p1total)) / float64(strToInt(p2total))
-	}
-
 	currentBal := "1000" // default value?
 
 	// c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
@@ -112,31 +141,6 @@ func main() {
 		err := json.Unmarshal(b, &s)
 		diaf(err)
 		return s
-	}
-
-	prState := func(ts GameState) {
-		odds := calcOdds(ts.P1total, ts.P2total)
-		diaf(err)
-
-		betstatus := func() string {
-			switch ts.Status {
-			case "1":
-				return "Red Wins"
-			case "2":
-				return "Blue Wins"
-			default:
-				return "Bets are " + ts.Status
-			}
-		}()
-		log.Printf("%s(%s)\tvs\t%s(%s)\t%s (%.2f:1)\tx:%d %s",
-			ts.P1name, ts.P1total,
-			ts.P2name, ts.P2total,
-			betstatus, odds,
-			ts.X, ts.Remaining,
-		)
-		if ts.Alert != "" {
-			log.Printf("Alert: %s", ts.Alert)
-		}
 	}
 
 	// need to log in and hit up the main page to get our balance and get our session ids to bet.
@@ -192,9 +196,6 @@ func main() {
 			profit := strToInt(userzData["b"]) - strToInt(currentBal)
 			currentBal = userzData["b"]
 			log.Printf("Balance updated: %s Change: %d", currentBal, profit)
-			if err != nil {
-				return
-			}
 		}
 	}
 	updateZdata()
@@ -230,7 +231,7 @@ func main() {
 		// if the most recent json bytes != last state json, update lastState using new bytes.
 		if string(body) != string(lastStateBytes) {
 			err = json.Unmarshal(body, &lastState)
-			prState(lastState)
+			log.Println(lastState)
 			lastStateBytes = body
 			diaf(err)
 
@@ -267,7 +268,7 @@ func main() {
 		// transport=websocket or polling
 
 		// sid=....? found in cookie's io var?
-		// socket receive: type "open", data "{"sid":"36Q3vIX320gzWmcFBMtO","upgrades":["websocket"],"pingInterval":25000,"pingTimeout":60000}" +1ms
+		// socket receive: type "open", data "{"sid":"36Q3vIX320gzWmcFBMtO","upgrades":["websocket"],"pingInetrval":25000,"pingTimeout":60000}" +1ms
 
 		// t= unixtime in ms
 		// ----
@@ -289,9 +290,9 @@ func main() {
 	func() {
 		// test state with betting open
 		b := []byte(`{"p1name":"Nicholas d. wolfwood","p2name":"Axe pq","p1total":"0","p2total":"0","status":"open","alert":"","x":0,"remaining":"48 more matches until the next tournament!"}`)
-		prState(StateFrmBytes(b))
+		log.Println(StateFrmBytes(b))
 		// test state with betting closed
 		b = []byte(`{"p1name":"Mike bison","p2name":"Grox","p1total":"2,733,397","p2total":"1,510,460","status":"locked","alert":"","x":1,"remaining":"45 more matches until the next tournament!"}`)
-		prState(StateFrmBytes(b))
+		log.Println(StateFrmBytes(b))
 	}()
 }
