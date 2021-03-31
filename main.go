@@ -49,9 +49,7 @@ type GameState struct {
 	// Exhibition mode start!
 	// ?? unknown
 	// usually blank
-	X int `json:"number"`
-	// announcement of rounds until a tournament
-	// announcement of characters left in tournament bracket
+	X         int    `json:"number"`
 	Remaining string // String including the # of matches until the next tournament
 	Bet       uint   // how much we bet on the fight.
 	Profit    int    // how much we won or lost on the bet.
@@ -75,16 +73,12 @@ func (g GameState) String() string {
 			return "Bets are " + g.Status
 		}
 	}()
-	a := fmt.Sprintf("%s(%s)\tvs\t%s(%s)\t%s (%.2f:1)\tx:%d %s",
-		g.P1name, g.P1total,
-		g.P2name, g.P2total,
-		betstatus, odds,
-		g.X, g.Remaining,
+	a := fmt.Sprintf("'%v' '%v' (%.1f:1) $%v $%v %v  x:%v Bet:%v Profit:%v\t%v", // TODO: fix this format string.
+		g.P1name, g.P2name, odds, g.P1total, g.P2total, betstatus, g.X, g.Bet, g.Profit, g.Remaining,
 	)
 	if g.Alert != "" {
-		a += fmt.Sprintf("Alert: %s", g.Alert)
+		a += fmt.Sprintf(" Alert: %s", g.Alert)
 	}
-	//	log.Fatal(a)
 	return a
 }
 
