@@ -10,20 +10,23 @@
 *** The gamestate json status has info about open/closed/red won/blue won, but the window on win result is only a few seconds.
 *** likely more efficient to watch chat or something.
 *** TODO Create events for "new match", "match won", tournament start/end
-* TODO query a database for data about players
-* TODO calculate odds based on historical data, before match starts
+* TODO query a database for data about matches
+** TODO calculate odds based on historical data, before match starts
+** TODO Connect/query database implementation
 * ✔DONE place bet
   CLOSED: [2021-03-29 Mon 02:00]
 * ✔DONE calculate odds ratio of a match(calc'd from player totals)
   CLOSED: [2021-03-25 Thu 07:08]
 *** TODO Store & use this data to rank competitors.
 *** TODO [#C] BUG: Displays NaN:1 while bets are still open.
-* INWK Detect game result
+* ✔DONE Detect game result
+  CLOSED: [2021-03-31 Wed 00:33]
 *** ✔DONE "websocket" connect to www.saltybet.com:2096
     CLOSED: [2021-03-29 Mon 01:59]
 *** ✔DONE refresh json only on data recieved.
     CLOSED: [2021-03-29 Mon 01:59]
-* TODO check/update balance when match is called.
+* ✔DONE check/update balance when match is called.
+  CLOSED: [2021-03-31 Wed 00:33]
 *** #b, bal or balance is found in data[u]["b"], with data being the return of get("/zdata.json?t=" + ms) referenced/shown in updateData() of /j/www-cdn-jtvnw-x.js
 *** TODO Fetch/update data accordingly.
 *** Balance is now detected on main page, but need to update it when we win or lose.
@@ -36,6 +39,7 @@
 * what are values x, u, g, i, m and this other stuff?
 ** u, b(balance), g, i, m, are hidden inputs which may or may not be filled in after login.
 * TODO Store history of fights, bets, etc for training of AI/algorithms
-* TODO [#A] BUG: client times out on state.json 
+** TODO when bets open, create a master GameState. When you bet, set g.Bet. When match is called, set g.Profit, serialize g for storage in history database.
+* TODO [#A] BUG: client times out on state.json?
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
