@@ -2,12 +2,12 @@ package main
 
 // credits:
 // https://blog.alexellis.io/golang-json-api-client/
+
 import (
 	"encoding/json"
-
 	"fmt"
 	"github.com/gocolly/colly/v2"
-	"github.com/graarh/golang-socketio"
+	gosocketio "github.com/graarh/golang-socketio"
 	"github.com/graarh/golang-socketio/transport"
 	"io/ioutil"
 	"log"
@@ -89,12 +89,14 @@ func diaf(err error) {
 	}
 }
 func main() {
+	// connect to the local database.
+
 	// step 1: login
 	c := colly.NewCollector()
 	c.AllowURLRevisit = true
 
 	// open up the auth.txt to get our username/password. TODO: need consult on more secure method.
-	var file, err = os.OpenFile("./auth.txt", os.O_RDONLY, 0644)
+	file, err := os.OpenFile("./auth.txt", os.O_RDONLY, 0644)
 	diaf(err)
 	defer file.Close()
 	authbytes, err := ioutil.ReadAll(file)
@@ -106,7 +108,7 @@ func main() {
 			"email":        email,
 			"pword":        pword,
 			"authenticate": "signin",
-		}, //TODO: stay logged in somehow?
+		},
 	)
 	diaf(err)
 
@@ -117,12 +119,12 @@ func main() {
 
 	currentBal := "1000" // default value?
 
-	// c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
-	// 	if e.Attr("value") != " " && e.Text != currentBal {
-	// 		currentBal = e.Attr("value")
-	// 		log.Println("Bal:", currentBal)
-	// 	}
-	// })
+	c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
+		if e.Attr("value") != " " && e.Text != currentBal {
+			currentBal = e.Attr("value")
+			log.Println("Page Bal:", currentBal)
+		}
+	})
 	uid := ""
 	c.OnHTML("#u", func(e *colly.HTMLElement) { // this only shows up on startup.
 		if e.Attr("value") != uid {
@@ -130,13 +132,6 @@ func main() {
 			log.Println("Uid:", uid)
 		}
 	})
-
-	StateFrmBytes := func(b []byte) GameState {
-		s := GameState{}
-		err := json.Unmarshal(b, &s)
-		diaf(err)
-		return s
-	}
 
 	// need to log in and hit up the main page to get our balance and get our session ids to bet.
 	err = c.Visit("https://www.saltybet.com/")
@@ -285,12 +280,12 @@ func main() {
 	}
 
 	/////// testing & troubleshooting stuff after here
-	func() {
-		// test state with betting open
-		b := []byte(`{"p1name":"Nicholas d. wolfwood","p2name":"Axe pq","p1total":"0","p2total":"0","status":"open","alert":"","x":0,"remaining":"48 more matches until the next tournament!"}`)
-		log.Println(StateFrmBytes(b))
-		// test state with betting closed
-		b = []byte(`{"p1name":"Mike bison","p2name":"Grox","p1total":"2,733,397","p2total":"1,510,460","status":"locked","alert":"","x":1,"remaining":"45 more matches until the next tournament!"}`)
-		log.Println(StateFrmBytes(b))
-	}()
+	// func() {
+	// 	// test state with betting open
+	// 	b := []byte(`{"p1name":"Nicholas d. wolfwood","p2name":"Axe pq","p1total":"0","p2total":"0","status":"open","alert":"","x":0,"remaining":"48 more matches until the next tournament!"}`)
+	// 	log.Println(StateFrmBytes(b))
+	// 	// test state with betting closed
+	// 	b = []byte(`{"p1name":"Mike bison","p2name":"Grox","p1total":"2,733,397","p2total":"1,510,460","status":"locked","alert":"","x":1,"remaining":"45 more matches until the next tournament!"}`)
+	// 	log.Println(StateFrmBytes(b))
+	// }()
 }
