@@ -74,7 +74,7 @@ func (g *GameState) calcProfit(wager int, player string) int {
 func (g GameState) String() string {
 	/* implements the stringer interface on GameState, so we can use standard print stuff on it
 	   with our desired custom output */
-	odds := g.calcOdds("1")
+	odds := g.calcOdds("2")
 	betstatus := func() string {
 		switch g.Status {
 		case "1":
@@ -145,11 +145,11 @@ func main() {
 		log.Printf("rcvd %d %s", r.StatusCode, r.Request.URL)
 	})
 
-	currentBal := "1000" // default value?
+	currentBal := 1000 // default value?
 
 	c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
-		if e.Attr("value") != " " && e.Text != currentBal {
-			currentBal = e.Attr("value")
+		if e.Attr("value") != " " && e.Text != strconv.Itoa(currentBal) {
+			currentBal = strToInt(e.Attr("value"))
 			log.Println("Page Bal:", currentBal)
 		}
 	})
@@ -173,58 +173,10 @@ func main() {
 	t := func() string { // time in milliseconds, as a string. used by the API for something. who knows.
 		return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
 	}
-	var zDataBytes = []byte("")
-	var zData map[string]json.RawMessage
 
 	lastStateBytes := []byte("")
 	lastState := GameState{}
 	wager := 0
-
-	updateZdata := func() { // TODO: refactor updateZdata + updateState?
-		// fetch zdata json
-		httpClient := http.Client{Timeout: time.Second * 10}
-
-		req, err := http.NewRequest(
-			http.MethodGet,
-			"https://www.saltybet.com/zdata.json?t="+t(),
-			nil,
-		)
-		res, err := httpClient.Do(req)
-		if err != nil {
-			log.Println("-- ERROR: ", err)
-			return // bail out. We'll update next time.
-		}
-		if res.Body != nil {
-			defer res.Body.Close()
-		}
-
-		body, err := ioutil.ReadAll(res.Body)
-		diaf(err)
-
-		// if the most recent json bytes != last json bytes, update using new bytes.
-		if string(body) != string(zDataBytes) {
-			err = json.Unmarshal(body, &zData)
-			if zData[uid] == nil {
-				return // we haven't bet
-			}
-			if err != nil {
-				log.Println(" -- Error: ", err)
-				return // something went wrong with the json.
-			}
-			var userzData map[string]string
-			err = json.Unmarshal(zData[uid], &userzData)
-			if err != nil {
-				log.Println(" -- Error: ", err)
-				return
-			}
-
-			profit := strToInt(userzData["b"]) - strToInt(currentBal)
-
-			currentBal = userzData["b"]
-			log.Printf("Balance updated: %s Change: %d", currentBal, profit)
-		}
-	}
-	updateZdata() // we do all that just for the balance?
 	updateState := func() {
 		// fetch json/gamestate
 		httpClient := http.Client{Timeout: time.Second * 10}
@@ -261,11 +213,10 @@ func main() {
 			switch lastState.Status {
 			case "open":
 				{
-					updateZdata() // Zdata will update our balance and whatnots.
 					// place bet!
 					// post request to /ajax_place_bet.php
 					// for now, always bet red(player1)
-					wager = strToInt(currentBal) / 10
+					wager = currentBal / 10
 					c.Post(
 						"https://www.saltybet.com/ajax_place_bet.php",
 						map[string]string{
@@ -289,13 +240,15 @@ func main() {
 						P1total: strToInt(lastState.P1total),
 						P2total: strToInt(lastState.P2total),
 						Winner:  lastState.Status,
-						Bet:     0, // TODO: put the bet data in when you calculate profits later.
-						Profit:  0,
+						Bet:     wager, // TODO: put the bet data in when you calculate profits later.
+						Profit:  estProfit,
 						X:       lastState.X,
 					})
 					if err != nil {
 						log.Println(err)
 					}
+					currentBal = estProfit + currentBal
+					log.Printf("Balance updated: %d Change: %d", currentBal, estProfit)
 					var hist []fightHist
 					err = db.All(&hist)
 					if err != nil {

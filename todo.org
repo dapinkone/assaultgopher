@@ -40,11 +40,15 @@
 ** u, b(balance), g, i, m, are hidden inputs on the main page at login.
 * ✔DONE Store history of fights
   CLOSED: [2021-04-03 Sat 08:11] History is being stored.
-* TODO calculate profit, and thus continued balance, from odds/victories.
-** TODO abstract/remove zData from being a thing.
-** TODO Store bets & calculated profit with records.
+* ✔DONE calculate profit, and thus continued balance, from odds/victories.
+  CLOSED: [2021-04-03 Sat 09:44]
+** ✔DONE abstract/remove zData from being a thing.
+   CLOSED: [2021-04-03 Sat 09:44]
+** ✔DONE Store bets & calculated profit with records.
+   CLOSED: [2021-04-03 Sat 09:44]
 * HOLD [#A] BUG: client times out on state.json?
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
   2021/04/03 Haven't seen this error in some time. I previously increaed the Client.Timeout limit. That may have been the fix.
+* TODO BUG: possible rounding error in estProfit causes currBalance to drift over longer periods.
 
