@@ -37,11 +37,14 @@
 ** tournament balance is found in /ajax_tournament_start.php
 ** exhibition mode something or other is at /ajax_tournament_end.php
 * what are values x, u, g, i, m and this other stuff?
-** u, b(balance), g, i, m, are hidden inputs which may or may not be filled in after login.
-* TODO Store history of fights, bets, etc for training of AI/algorithms
-** TODO when bets open, create a master GameState. When you bet, set g.Bet. When match is called, set g.Profit, serialize g for storage in history database.
-** TODO calculate profit, and thus continued balance, from odds/victories.
-* TODO [#A] BUG: client times out on state.json?
+** u, b(balance), g, i, m, are hidden inputs on the main page at login.
+* ✔DONE Store history of fights
+  CLOSED: [2021-04-03 Sat 08:11] History is being stored.
+* TODO calculate profit, and thus continued balance, from odds/victories.
+** TODO abstract/remove zData from being a thing.
+** TODO Store bets & calculated profit with records.
+* HOLD [#A] BUG: client times out on state.json?
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
-* TODO do we really need to query zData, or can we derive that from other places?
+  2021/04/03 Haven't seen this error in some time. I previously increaed the Client.Timeout limit. That may have been the fix.
+
