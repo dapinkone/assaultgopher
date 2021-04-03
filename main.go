@@ -83,15 +83,15 @@ func (g GameState) String() string {
 
 type fightHist struct {
 	// struct for our use with stormDB
-	ID      int    `storm: id`
-	P1name  string `storm: index` // winner's name
-	P2name  string `storm: index` // loser's name
+	Time    int    `storm:"id"`    // unix timestamp used for ID
+	P1name  string `storm:"index"` // winner's name
+	P2name  string `storm:"index"` // loser's name
 	P1total int    // total amnt bet on winner
 	P2total int    // total amnt bet on loser
 	Bet     int    // amnt we bet
 	Profit  int    // amnt of profit made on that bet
-	Winner  string
-	X       int `storm: index` // ???
+	Winner  string // either "1" or "2"
+	X       int    `storm:"index"` // ???
 }
 
 func diaf(err error) {
@@ -262,11 +262,12 @@ func main() {
 					log.Printf("Bet placed for %d on %s!", wager, lastState.P1name)
 					break
 				}
-			case "closed":
+			case "locked":
 				// bets are now closed.
 			case "1", "2": // fight's over.
 				{
-					db.Save(&fightHist{ // TODO do we need this?
+					err = db.Save(&fightHist{
+						Time:    int(time.Now().Unix()),
 						P1name:  lastState.P1name,
 						P2name:  lastState.P2name,
 						P1total: strToInt(lastState.P1total),
@@ -276,6 +277,15 @@ func main() {
 						Profit:  0,
 						X:       lastState.X,
 					})
+					if err != nil {
+						log.Println(err)
+					}
+					var hist []fightHist
+					err = db.All(&hist)
+					if err != nil {
+						log.Println(err)
+					}
+					log.Printf("%d records.", len(hist))
 
 				}
 			}
