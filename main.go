@@ -22,8 +22,7 @@ import (
 func strToInt(s string) int {
 	clean := strings.Replace(s, ",", "", -1)
 	if clean != "" {
-		i, err := strconv.Atoi(clean)
-		diaf(err)
+		i, _ := strconv.Atoi(clean)
 		return i
 	} else {
 		return 0
@@ -54,14 +53,28 @@ type GameState struct {
 	Remaining string // String including the # of matches until the next tournament
 }
 
-func (g *GameState) calcOdds() float64 {
-	return float64(strToInt(g.P1total)) / float64(strToInt(g.P2total))
+func (g *GameState) calcOdds(player string) float64 { // calculate the odds for a player
+	switch player {
+	case "1":
+		return float64(strToInt(g.P2total)) / float64(strToInt(g.P1total))
+	case "2":
+		return float64(strToInt(g.P1total)) / float64(strToInt(g.P2total))
+	default:
+		return 0
+	}
+}
+func (g *GameState) calcProfit(wager int, player string) int {
+	if g.Status != player { // bet wrong. lost.
+		return -1 * wager
+	}
+	return int(float64(wager) * g.calcOdds(player))
+
 }
 
 func (g GameState) String() string {
 	/* implements the stringer interface on GameState, so we can use standard print stuff on it
 	   with our desired custom output */
-	odds := g.calcOdds()
+	odds := g.calcOdds("1")
 	betstatus := func() string {
 		switch g.Status {
 		case "1":
@@ -163,6 +176,10 @@ func main() {
 	var zDataBytes = []byte("")
 	var zData map[string]json.RawMessage
 
+	lastStateBytes := []byte("")
+	lastState := GameState{}
+	wager := 0
+
 	updateZdata := func() { // TODO: refactor updateZdata + updateState?
 		// fetch zdata json
 		httpClient := http.Client{Timeout: time.Second * 10}
@@ -202,14 +219,12 @@ func main() {
 			}
 
 			profit := strToInt(userzData["b"]) - strToInt(currentBal)
+
 			currentBal = userzData["b"]
 			log.Printf("Balance updated: %s Change: %d", currentBal, profit)
 		}
 	}
 	updateZdata() // we do all that just for the balance?
-	lastStateBytes := []byte("")
-	lastState := GameState{}
-	wager := 0
 	updateState := func() {
 		// fetch json/gamestate
 		httpClient := http.Client{Timeout: time.Second * 10}
@@ -243,7 +258,6 @@ func main() {
 			log.Println(lastState)
 			lastStateBytes = body
 			diaf(err)
-
 			switch lastState.Status {
 			case "open":
 				{
@@ -266,6 +280,8 @@ func main() {
 				// bets are now closed.
 			case "1", "2": // fight's over.
 				{
+					estProfit := lastState.calcProfit(wager, "1") // TODO: always betting red for now
+					log.Printf("est profit: %d", estProfit)
 					err = db.Save(&fightHist{
 						Time:    int(time.Now().Unix()),
 						P1name:  lastState.P1name,
