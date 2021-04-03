@@ -40,6 +40,7 @@
 ** u, b(balance), g, i, m, are hidden inputs which may or may not be filled in after login.
 * TODO Store history of fights, bets, etc for training of AI/algorithms
 ** TODO when bets open, create a master GameState. When you bet, set g.Bet. When match is called, set g.Profit, serialize g for storage in history database.
+** TODO calculate profit, and thus continued balance, from odds/victories.
 * TODO [#A] BUG: client times out on state.json?
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1

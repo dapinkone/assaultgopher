@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/asdine/storm"
 	"github.com/gocolly/colly/v2"
 	gosocketio "github.com/graarh/golang-socketio"
 	"github.com/graarh/golang-socketio/transport"
@@ -51,8 +52,6 @@ type GameState struct {
 	// usually blank
 	X         int    `json:"number"`
 	Remaining string // String including the # of matches until the next tournament
-	Bet       uint   // how much we bet on the fight.
-	Profit    int    // how much we won or lost on the bet.
 }
 
 func (g *GameState) calcOdds() float64 {
@@ -73,13 +72,26 @@ func (g GameState) String() string {
 			return "Bets are " + g.Status
 		}
 	}()
-	a := fmt.Sprintf("'%v' '%v' (%.1f:1) $%v $%v %v  x:%v Bet:%v Profit:%v\t%v", // TODO: fix this format string.
-		g.P1name, g.P2name, odds, g.P1total, g.P2total, betstatus, g.X, g.Bet, g.Profit, g.Remaining,
+	a := fmt.Sprintf("'%v' '%v' (%.1f:1) $%v $%v %v  x:%v\t%v", // TODO: fix this format string.
+		g.P1name, g.P2name, odds, g.P1total, g.P2total, betstatus, g.X, g.Remaining,
 	)
 	if g.Alert != "" {
 		a += fmt.Sprintf(" Alert: %s", g.Alert)
 	}
 	return a
+}
+
+type fightHist struct {
+	// struct for our use with stormDB
+	ID      int    `storm: id`
+	P1name  string `storm: index` // winner's name
+	P2name  string `storm: index` // loser's name
+	P1total int    // total amnt bet on winner
+	P2total int    // total amnt bet on loser
+	Bet     int    // amnt we bet
+	Profit  int    // amnt of profit made on that bet
+	Winner  string
+	X       int `storm: index` // ???
 }
 
 func diaf(err error) {
@@ -89,7 +101,10 @@ func diaf(err error) {
 	}
 }
 func main() {
+
 	// connect to the local database.
+	db, _ := storm.Open("./storm.db")
+	defer db.Close()
 
 	// step 1: login
 	c := colly.NewCollector()
@@ -191,9 +206,10 @@ func main() {
 			log.Printf("Balance updated: %s Change: %d", currentBal, profit)
 		}
 	}
-	updateZdata()
+	updateZdata() // we do all that just for the balance?
 	lastStateBytes := []byte("")
 	lastState := GameState{}
+	wager := 0
 	updateState := func() {
 		// fetch json/gamestate
 		httpClient := http.Client{Timeout: time.Second * 10}
@@ -228,22 +244,42 @@ func main() {
 			lastStateBytes = body
 			diaf(err)
 
-			if lastState.Status == "open" {
-				updateZdata() // Zdata will update our balance and whatnots.
-				// place bet!
-				// post request to /ajax_place_bet.php
-				// for now, always bet red(player1)
-				wager := strconv.Itoa(strToInt(currentBal) / 10)
-				c.Post(
-					"https://www.saltybet.com/ajax_place_bet.php",
-					map[string]string{
-						"selectedplayer": "player1",
-						"wager":          wager,
-					},
-				)
-				log.Printf("Bet placed for %s on %s!", wager, lastState.P1name)
+			switch lastState.Status {
+			case "open":
+				{
+					updateZdata() // Zdata will update our balance and whatnots.
+					// place bet!
+					// post request to /ajax_place_bet.php
+					// for now, always bet red(player1)
+					wager = strToInt(currentBal) / 10
+					c.Post(
+						"https://www.saltybet.com/ajax_place_bet.php",
+						map[string]string{
+							"selectedplayer": "player1",
+							"wager":          strconv.Itoa(wager),
+						},
+					)
+					log.Printf("Bet placed for %d on %s!", wager, lastState.P1name)
+					break
+				}
+			case "closed":
+				// bets are now closed.
+			case "1", "2": // fight's over.
+				{
+					db.Save(&fightHist{ // TODO do we need this?
+						P1name:  lastState.P1name,
+						P2name:  lastState.P2name,
+						P1total: strToInt(lastState.P1total),
+						P2total: strToInt(lastState.P2total),
+						Winner:  lastState.Status,
+						Bet:     0, // TODO: put the bet data in when you calculate profits later.
+						Profit:  0,
+						X:       lastState.X,
+					})
 
+				}
 			}
+
 		}
 
 	}
@@ -270,9 +306,7 @@ func main() {
 	)
 	defer ws.Close()
 	ws.On("message", func(data *gosocketio.Channel) {
-
 		updateState()
-
 	})
 
 	for { // wait forever.
