@@ -6,17 +6,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/asdine/storm"
-	"github.com/gocolly/colly/v2"
-	gosocketio "github.com/graarh/golang-socketio"
-	"github.com/graarh/golang-socketio/transport"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/asdine/storm"
+	"github.com/gocolly/colly/v2"
+	gosocketio "github.com/graarh/golang-socketio"
+	"github.com/graarh/golang-socketio/transport"
 )
 
 func strToInt(s string) int {
@@ -56,9 +58,9 @@ type GameState struct {
 func (g *GameState) calcOdds(player string) float64 { // calculate the odds for a player
 	switch player {
 	case "1":
-		return float64(strToInt(g.P2total)) / float64(strToInt(g.P1total))
+		return math.Ceil(float64(strToInt(g.P2total)) / float64(strToInt(g.P1total)))
 	case "2":
-		return float64(strToInt(g.P1total)) / float64(strToInt(g.P2total))
+		return math.Ceil(float64(strToInt(g.P1total)) / float64(strToInt(g.P2total)))
 	default:
 		return 0
 	}
@@ -145,9 +147,9 @@ func main() {
 		log.Printf("rcvd %d %s", r.StatusCode, r.Request.URL)
 	})
 
-	currentBal := 1000 // default value?
+	currentBal := 0
 
-	c.OnHTML("#b", func(e *colly.HTMLElement) { // Why is this never showing up?
+	c.OnHTML("#b", func(e *colly.HTMLElement) { // initial value of our balance, from the main page.
 		if e.Attr("value") != " " && e.Text != strconv.Itoa(currentBal) {
 			currentBal = strToInt(e.Attr("value"))
 			log.Println("Page Bal:", currentBal)
@@ -206,9 +208,10 @@ func main() {
 
 		// if the most recent json bytes != last state json, update lastState using new bytes.
 		if string(body) != string(lastStateBytes) {
+			lastStateBytes = body
 			err = json.Unmarshal(body, &lastState)
 			log.Println(lastState)
-			lastStateBytes = body
+
 			diaf(err)
 			switch lastState.Status {
 			case "open":
