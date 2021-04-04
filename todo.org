@@ -50,5 +50,12 @@
   2021/03/29 01:57:15 Get "https://www.saltybet.com/state.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
   exit status 1
   2021/04/03 Haven't seen this error in some time. I previously increaed the Client.Timeout limit. That may have been the fix.
-* TODO BUG: possible rounding error in estProfit causes currBalance to drift over longer periods.
+* ✔DONE BUG: possible rounding error in estProfit causes currBalance to drift over longer periods.
+  CLOSED: [2021-04-04 Sun 11:13]
+* TODO BUG: occasionally SB reports the same victory twice. Our checks for this are not working, and the profit is likewise counted twice.
+* TODO Tournament mode
+** They do some weird things with the balance here. It throws off our estimated balance.
+* TODO Exhibition mode
+** Not useful for historical/ranking purposes, as team names are random user-submitted garbage?
+* TODO Implement betting/ranking strategy
 
