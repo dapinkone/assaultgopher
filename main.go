@@ -69,7 +69,17 @@ func (g *GameState) calcProfit(wager int, player string) int {
 	if g.Status != player { // bet wrong. lost.
 		return -1 * wager
 	}
-	return int(float64(wager) * g.calcOdds(player))
+	p1float := float64(strToInt(g.P1total))
+	p2float := float64(strToInt(g.P2total))
+	switch g.Status {
+	case "1":
+		return int(math.Ceil(float64(wager) / p1float * p2float))
+	case "2":
+		return int(math.Ceil(float64(wager) / p2float * p1float))
+	default:
+		return 0
+	}
+	//	return int(float64(wager) * g.calcOdds(player))
 
 }
 
