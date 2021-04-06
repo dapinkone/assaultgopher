@@ -59,4 +59,5 @@
 * TODO Exhibition mode
 ** Not useful for historical/ranking purposes, as team names are random user-submitted garbage?
 * INWK Implement betting/ranking strategy
-
+* TODO support for "bailout" detection. Go all in if our balance is below where we'll be bailed out.
+* TODO major refactor. Code feels like pasta.

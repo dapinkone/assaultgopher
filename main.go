@@ -31,6 +31,46 @@ func strToInt(s string) int {
 	}
 }
 
+func Index(arr []string, item string) int {
+	for ind, j := range arr {
+		if j == item {
+			return ind
+		}
+	}
+	return -1
+}
+
+func Insert(s []string, k int, vs ...string) []string {
+	// credit https://github.com/golang/go/wiki/SliceTricks
+	if n := len(s) + len(vs); n <= cap(s) {
+		s2 := s[:n]
+		copy(s2[k+len(vs):], s[k:])
+		copy(s2[k:], vs)
+		return s2
+	}
+	s2 := make([]string, len(s)+len(vs))
+	copy(s2, s[:k])
+	copy(s2[k:], vs)
+	copy(s2[k+len(vs):], s[k:])
+	return s2
+}
+
+////////////////////////////////////////
+// some credit for the below to omotto @
+// https://stackoverflow.com/questions/43616676/moving-an-slice-item-from-one-position-to-another-in-go
+
+func remove(array []string, index int) []string {
+	return append(array[:index], array[index+1:]...)
+}
+
+func move(array []string, srcIndex int, dstIndex int) []string {
+	value := array[srcIndex]
+	return Insert(remove(array, srcIndex), dstIndex, value)
+}
+
+// </credit>
+/////////////////////////////////////////
+
 // get game state json from
 // https://www.saltybet.com/state.json
 // it's used over here https://www.saltybet.com/j/www-cdn-jtvnw-x.js
@@ -66,18 +106,24 @@ func (g *GameState) calcOdds(player string) float64 { // calculate the odds for 
 	}
 }
 func (g *GameState) calcProfit(wager int, player string) int {
-	if g.Status != player { // bet wrong. lost.
-		return -1 * wager
-	}
 	p1float := float64(strToInt(g.P1total))
 	p2float := float64(strToInt(g.P2total))
 	switch g.Status {
-	case "1":
-		return int(math.Ceil(float64(wager) / p1float * p2float))
-	case "2":
-		return int(math.Ceil(float64(wager) / p2float * p1float))
+	case "1": // red won
+		if player == g.P1name { // but did we bet for red?
+			return int(math.Ceil(float64(wager) / p1float * p2float))
+		} else {
+			return -1 * wager
+		}
+	case "2": // blue won
+		if player == g.P2name { // but did we bet for blue?
+			return int(math.Ceil(float64(wager) / p2float * p1float))
+		} else {
+			return -1 * wager
+		}
 	default:
-		return 0
+		log.Println("***calcProfit reached Default value***")
+		return 0 // edge case? Who knows.
 	}
 }
 
@@ -128,6 +174,78 @@ func main() {
 	// connect to the local database.
 	db, _ := storm.Open("./storm.db")
 	defer db.Close()
+
+	ranks := []string{} // players ranking
+	var fightsQuery []fightHist
+	err := db.All(&fightsQuery)
+	diaf(err)
+	seen := make(map[string]bool)
+
+	recordFight := func(p1name string, p2name string, result string) {
+		var winner string
+		var loser string
+		if result == "1" {
+			winner, loser = p1name, p2name
+		} else {
+			winner, loser = p2name, p1name
+		}
+		if seen[winner] && seen[loser] {
+			if Index(ranks, winner) < Index(ranks, loser) {
+				// move the winner to be past the loser.
+				ranks = move(ranks, Index(ranks, winner), Index(ranks, loser))
+			}
+			// elsewise, the order is already fine.
+		} else if seen[winner] {
+			// haven't seen loser. loser goes to bottom rank
+			// until they win something.
+			ranks = append([]string{loser}, ranks...)
+		} else if seen[loser] {
+			ranks = Insert(ranks, Index(ranks, loser), winner)
+		} else {
+			// both new fighters. Throw them on the bottom.
+			// They'll work their way up eventually.
+			ranks = append([]string{loser, winner}, ranks...)
+		}
+		seen[winner] = true
+		seen[loser] = true
+	}
+
+	predict := func(p1 string, p2 string) string {
+		// check our player ranking for who's "on top"
+		if Index(ranks, p1) >= Index(ranks, p2) {
+			return p1
+		} else {
+			return p2
+		}
+	}
+	var predictHist []bool
+	var goodPredicts int
+	var totalPredicts int
+	for _, fight := range fightsQuery {
+		// cycle through some fights we saw previously to build of a library.
+		predictedWinner := predict(fight.P1name, fight.P2name)
+		var wname string
+		switch fight.Winner {
+		case "1":
+			wname = fight.P1name
+		case "2":
+			wname = fight.P2name
+		}
+		predictHist = append(predictHist, predictedWinner == wname)
+		// display a count of our accuracy over prediction history
+
+		recordFight(fight.P1name, fight.P2name, fight.Winner)
+	}
+	totalPredicts = len(predictHist)
+
+	for _, item := range predictHist {
+		if item == true {
+			goodPredicts++
+		}
+	}
+
+	accuracy := float64(goodPredicts) / float64(totalPredicts) * 100
+	log.Printf("Ranks built from %d data entries\nBacklog expects %0.1f accuracy", len(fightsQuery), accuracy)
 
 	// step 1: login
 	c := colly.NewCollector()
@@ -221,18 +339,24 @@ func main() {
 		diaf(err)
 		lastState = newState
 		log.Println(lastState)
-
+		var predictedWinner string
 		switch lastState.Status {
 		case "open":
 			{
 				// place bet!
 				// post request to /ajax_place_bet.php
-				// for now, always bet red(player1)
 				wager = currentBal / 10
+				var selectedPlayer string
+				predictedWinner := predict(lastState.P1name, lastState.P2name)
+				if predictedWinner == lastState.P1name {
+					selectedPlayer = "player1"
+				} else {
+					selectedPlayer = "player2"
+				}
 				c.Post(
 					"https://www.saltybet.com/ajax_place_bet.php",
 					map[string]string{
-						"selectedplayer": "player1",
+						"selectedplayer": selectedPlayer,
 						"wager":          strconv.Itoa(wager),
 					},
 				)
@@ -243,8 +367,7 @@ func main() {
 			// bets are now closed.
 		case "1", "2": // fight's over.
 			{
-				estProfit := lastState.calcProfit(wager, "1") // TODO: always betting red for now
-				log.Printf("est profit: %d", estProfit)
+				estProfit := lastState.calcProfit(wager, predictedWinner)
 				err = db.Save(&fightHist{
 					Time:    int(time.Now().Unix()),
 					P1name:  lastState.P1name,
@@ -259,14 +382,28 @@ func main() {
 				if err != nil {
 					log.Println(err)
 				}
-				currentBal = estProfit + currentBal
-				log.Printf("Balance updated: %d Change: %d", currentBal, estProfit)
-				var hist []fightHist
-				err = db.All(&hist)
-				if err != nil {
-					log.Println(err)
+
+				winnerName := func() string {
+					if lastState.Status == "1" {
+						return lastState.P1name
+					} else {
+						return lastState.P2name
+					}
+				}()
+
+				recordFight(lastState.P1name, lastState.P2name, lastState.Status)
+				predictHist = append(predictHist, predictedWinner == winnerName)
+				// display a count of our accuracy over prediction history
+				totalPredicts = len(predictHist)
+				if predictedWinner == winnerName {
+					goodPredicts++
 				}
-				log.Printf("%d records.", len(hist))
+				accuracy := float64(goodPredicts) / float64(totalPredicts) * 100
+
+				currentBal = estProfit + currentBal
+				log.Printf("Balance updated: %d Change: %d @ %d/%d %0.2f",
+					currentBal, estProfit, goodPredicts, totalPredicts,
+					accuracy)
 
 			}
 		}
