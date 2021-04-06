@@ -79,8 +79,6 @@ func (g *GameState) calcProfit(wager int, player string) int {
 	default:
 		return 0
 	}
-	//	return int(float64(wager) * g.calcOdds(player))
-
 }
 
 func (g GameState) String() string {
@@ -186,7 +184,6 @@ func main() {
 		return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
 	}
 
-	lastStateBytes := []byte("")
 	lastState := GameState{}
 	wager := 0
 	updateState := func() {
@@ -216,65 +213,65 @@ func main() {
 		body, err := ioutil.ReadAll(res.Body)
 		diaf(err)
 
-		// if the most recent json bytes != last state json, update lastState using new bytes.
-		if string(body) != string(lastStateBytes) {
-			lastStateBytes = body
-			err = json.Unmarshal(body, &lastState)
-			log.Println(lastState)
-
-			diaf(err)
-			switch lastState.Status {
-			case "open":
-				{
-					// place bet!
-					// post request to /ajax_place_bet.php
-					// for now, always bet red(player1)
-					wager = currentBal / 10
-					c.Post(
-						"https://www.saltybet.com/ajax_place_bet.php",
-						map[string]string{
-							"selectedplayer": "player1",
-							"wager":          strconv.Itoa(wager),
-						},
-					)
-					log.Printf("Bet placed for %d on %s!", wager, lastState.P1name)
-					break
-				}
-			case "locked":
-				// bets are now closed.
-			case "1", "2": // fight's over.
-				{
-					estProfit := lastState.calcProfit(wager, "1") // TODO: always betting red for now
-					log.Printf("est profit: %d", estProfit)
-					err = db.Save(&fightHist{
-						Time:    int(time.Now().Unix()),
-						P1name:  lastState.P1name,
-						P2name:  lastState.P2name,
-						P1total: strToInt(lastState.P1total),
-						P2total: strToInt(lastState.P2total),
-						Winner:  lastState.Status,
-						Bet:     wager, // TODO: put the bet data in when you calculate profits later.
-						Profit:  estProfit,
-						X:       lastState.X,
-					})
-					if err != nil {
-						log.Println(err)
-					}
-					currentBal = estProfit + currentBal
-					log.Printf("Balance updated: %d Change: %d", currentBal, estProfit)
-					var hist []fightHist
-					err = db.All(&hist)
-					if err != nil {
-						log.Println(err)
-					}
-					log.Printf("%d records.", len(hist))
-
-				}
-			}
-
+		var newState GameState
+		err = json.Unmarshal(body, &newState)
+		if lastState.Status == newState.Status {
+			return // duplicate detected. bail out. We shouldn't see two statuses of the same.
 		}
+		diaf(err)
+		lastState = newState
+		log.Println(lastState)
 
+		switch lastState.Status {
+		case "open":
+			{
+				// place bet!
+				// post request to /ajax_place_bet.php
+				// for now, always bet red(player1)
+				wager = currentBal / 10
+				c.Post(
+					"https://www.saltybet.com/ajax_place_bet.php",
+					map[string]string{
+						"selectedplayer": "player1",
+						"wager":          strconv.Itoa(wager),
+					},
+				)
+				log.Printf("Bet placed for %d on %s!", wager, lastState.P1name)
+				break
+			}
+		case "locked":
+			// bets are now closed.
+		case "1", "2": // fight's over.
+			{
+				estProfit := lastState.calcProfit(wager, "1") // TODO: always betting red for now
+				log.Printf("est profit: %d", estProfit)
+				err = db.Save(&fightHist{
+					Time:    int(time.Now().Unix()),
+					P1name:  lastState.P1name,
+					P2name:  lastState.P2name,
+					P1total: strToInt(lastState.P1total),
+					P2total: strToInt(lastState.P2total),
+					Winner:  lastState.Status,
+					Bet:     wager, // TODO: put the bet data in when you calculate profits later.
+					Profit:  estProfit,
+					X:       lastState.X,
+				})
+				if err != nil {
+					log.Println(err)
+				}
+				currentBal = estProfit + currentBal
+				log.Printf("Balance updated: %d Change: %d", currentBal, estProfit)
+				var hist []fightHist
+				err = db.All(&hist)
+				if err != nil {
+					log.Println(err)
+				}
+				log.Printf("%d records.", len(hist))
+
+			}
+		}
 	}
+
 	updateState() // initialize our gamestate.
 	// for our main event loop, we're gonna connect a websocket
 	// then we do stuff when the socket passes us data.
