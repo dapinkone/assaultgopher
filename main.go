@@ -108,22 +108,13 @@ func (g *GameState) calcOdds(player string) float64 { // calculate the odds for 
 func (g *GameState) calcProfit(wager int, player string) int {
 	p1float := float64(strToInt(g.P1total))
 	p2float := float64(strToInt(g.P2total))
-	switch g.Status {
-	case "1": // red won
-		if player == g.P1name { // but did we bet for red?
-			return int(math.Ceil(float64(wager) / p1float * p2float))
-		} else {
-			return -1 * wager
-		}
-	case "2": // blue won
-		if player == g.P2name { // but did we bet for blue?
-			return int(math.Ceil(float64(wager) / p2float * p1float))
-		} else {
-			return -1 * wager
-		}
-	default:
-		log.Println("***calcProfit reached Default value***")
-		return 0 // edge case? Who knows.
+	if g.Status == "1" && player == g.P1name { // did red win?
+		return int(math.Ceil(float64(wager) / p1float * p2float))
+	} else if g.Status == "2" && player == g.P2name {
+		return int(math.Ceil(float64(wager) / p2float * p1float))
+	} else {
+		log.Printf("%s bad bet.", player)
+		return -1 * wager
 	}
 }
 
@@ -212,7 +203,10 @@ func main() {
 
 	predict := func(p1 string, p2 string) string {
 		// check our player ranking for who's "on top"
-		if Index(ranks, p1) >= Index(ranks, p2) {
+		p1rank := Index(ranks, p1)
+		p2rank := Index(ranks, p2)
+		log.Printf("Predict: %s(%d) vs %s(%d)", p1, p1rank, p2, p2rank)
+		if p1rank >= p2rank {
 			return p1
 		} else {
 			return p2
@@ -304,6 +298,7 @@ func main() {
 
 	lastState := GameState{}
 	wager := 0
+	var predictedWinner string
 	updateState := func() {
 		// fetch json/gamestate
 		httpClient := http.Client{Timeout: time.Second * 10}
@@ -334,12 +329,13 @@ func main() {
 		var newState GameState
 		err = json.Unmarshal(body, &newState)
 		if lastState.Status == newState.Status {
+			//			log.Println("Duplicate detected")
 			return // duplicate detected. bail out. We shouldn't see two statuses of the same.
 		}
 		diaf(err)
 		lastState = newState
 		log.Println(lastState)
-		var predictedWinner string
+
 		switch lastState.Status {
 		case "open":
 			{
@@ -347,7 +343,7 @@ func main() {
 				// post request to /ajax_place_bet.php
 				wager = currentBal / 10
 				var selectedPlayer string
-				predictedWinner := predict(lastState.P1name, lastState.P2name)
+				predictedWinner = predict(lastState.P1name, lastState.P2name)
 				if predictedWinner == lastState.P1name {
 					selectedPlayer = "player1"
 				} else {
@@ -360,7 +356,7 @@ func main() {
 						"wager":          strconv.Itoa(wager),
 					},
 				)
-				log.Printf("Bet placed for %d on %s!", wager, lastState.P1name)
+				log.Printf("Bet placed for %d on %s!", wager, predictedWinner)
 				break
 			}
 		case "locked":
@@ -401,9 +397,9 @@ func main() {
 				accuracy := float64(goodPredicts) / float64(totalPredicts) * 100
 
 				currentBal = estProfit + currentBal
-				log.Printf("Balance updated: %d Change: %d @ %d/%d %0.2f",
+				log.Printf("Balance updated: %d Change: %d @ %d/%d records %0.2f acc %d known players",
 					currentBal, estProfit, goodPredicts, totalPredicts,
-					accuracy)
+					accuracy, len(ranks))
 
 			}
 		}
