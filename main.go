@@ -455,14 +455,17 @@ func main() {
 		transport.GetDefaultWebsocketTransport(),
 	)
 	defer ws.Close()
+
 	ws.On("message", func(data *gosocketio.Channel) {
 		updateState()
 	})
 
-	for { // wait forever.
-		time.Sleep(time.Second * 30)
-	}
-
+	websockfinished := make(chan bool)
+	ws.On("disconnect", func() {
+		websockfinished <- true
+	})
+	<-websockfinished
+	log.Println("Websocket disconnected. Program finished")
 	/////// testing & troubleshooting stuff after here
 	// func() {
 	// 	// test state with betting open
