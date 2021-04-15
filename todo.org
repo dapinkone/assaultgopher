@@ -56,8 +56,12 @@
   CLOSED: [2021-04-05 Mon 19:30]
 * TODO Tournament mode
 ** They do some weird things with the balance here. It throws off our estimated balance.
+** TODO BUG: our betting strategy seems excessively nieve during tournaments.
+   Perhaps with more/better data we can build a ranking tree or something?
 * TODO Exhibition mode
 ** Not useful for historical/ranking purposes, as team names are random user-submitted garbage?
 * INWK Implement betting/ranking strategy
 * TODO support for "bailout" detection. Go all in if our balance is below where we'll be bailed out.
 * TODO major refactor. Code feels like pasta.
+* TODO BUG: player names may not be unique(both players may have same name). This can lead to some mix ups somewhere, such as predictedWinner == winnerName
+* TODO BUG: appears to lock up after a couple days. Connection timeout or something?

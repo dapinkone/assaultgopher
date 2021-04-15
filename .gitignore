@@ -1,0 +1,7 @@
+# ignore files littered around by emacs
+*~
+\#*#
+
+#ignore our auth file.
+auth.txt
+main
