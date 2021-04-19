@@ -341,95 +341,92 @@ func main() {
 
 		switch lastState.Status {
 		case "open":
-			{
 
-				// place bet!
-				// post request to /ajax_place_bet.php
-				wager = currentBal / 10
-				var selectedPlayer string
-				predictedWinner = predict(lastState.P1name, lastState.P2name)
-				if predictedWinner == "" { // Unkown player.
-					// We don't bet unless we've seen the player before.
-					// Otherwise we tend to leak money like a sieve.
-					log.Println("Unknown player, Not betting.")
-					return
-				}
-				if predictedWinner == lastState.P1name {
-					selectedPlayer = "player1"
-				} else {
-					selectedPlayer = "player2"
-				}
-
-				c.Post(
-					"https://www.saltybet.com/ajax_place_bet.php",
-					map[string]string{
-						"selectedplayer": selectedPlayer,
-						"wager":          strconv.Itoa(wager),
-					},
-				)
-				log.Printf("Bet placed for %d on %s!", wager, predictedWinner)
-				break
+			// place bet!
+			// post request to /ajax_place_bet.php
+			wager = currentBal / 10
+			var selectedPlayer string
+			predictedWinner = predict(lastState.P1name, lastState.P2name)
+			if predictedWinner == "" { // Unkown player.
+				// We don't bet unless we've seen the player before.
+				// Otherwise we tend to leak money like a sieve.
+				log.Println("Unknown player, Not betting.")
+				return
 			}
+			if predictedWinner == lastState.P1name {
+				selectedPlayer = "player1"
+			} else {
+				selectedPlayer = "player2"
+			}
+
+			c.Post(
+				"https://www.saltybet.com/ajax_place_bet.php",
+				map[string]string{
+					"selectedplayer": selectedPlayer,
+					"wager":          strconv.Itoa(wager),
+				},
+			)
+			log.Printf("Bet placed for %d on %s!", wager, predictedWinner)
+			break
+
 		case "locked":
 			// bets are now closed.
 		case "1", "2": // fight's over.
-			{
-				winnerName := func() string {
-					if lastState.Status == "1" {
-						return lastState.P1name
-					} else {
-						return lastState.P2name
-					}
-				}()
-				estProfit := 0
-				if Index(ranks, lastState.P1name) != -1 && Index(ranks, lastState.P2name) != -1 {
-					// we've seen these guys before, so we would have bet.
-					betHist = append(betHist, predictedWinner == winnerName)
-					estProfit = lastState.calcProfit(wager, predictedWinner)
-				}
-				err = db.Save(&fightHist{
-					Time:    int(time.Now().Unix()),
-					P1name:  lastState.P1name,
-					P2name:  lastState.P2name,
-					P1total: strToInt(lastState.P1total),
-					P2total: strToInt(lastState.P2total),
-					Winner:  lastState.Status,
-					Bet:     wager, // TODO: put the bet data in when you calculate profits later.
-					Profit:  estProfit,
-					X:       lastState.X,
-				})
-				if err != nil {
-					log.Println(err)
-				}
-
-				recordFight(lastState.P1name, lastState.P2name, lastState.Status)
-				// display a count of our accuracy over prediction history
-				//				totalPredicts = len(betHist)
-
-				// we want to take a sliding estimate of our accuracy.
-				var histSlice []bool
-
-				if len(betHist) > 50 {
-					histSlice = betHist[len(betHist)-50:]
-				} else {
-					histSlice = betHist
-				}
-
-				goodPredicts = 0.0
-				for _, item := range histSlice {
-					if item == true {
-						goodPredicts++
-					}
-				}
-
-				accuracy := float64(goodPredicts) * 100 / float64(len(histSlice))
-
-				currentBal = estProfit + currentBal
-				log.Printf("Balance updated: %d Change: %d @ last %d bets had %0.2f%% acc %d known players\n\n",
-					currentBal, estProfit, len(histSlice),
-					accuracy, len(ranks))
-
+			var winnerName string
+			switch lastState.Status {
+			case "1":
+				winnerName = lastState.P1name
+			case "2":
+				winnerName = lastState.P2name
 			}
+			estProfit := 0
+			if Index(ranks, lastState.P1name) != -1 && Index(ranks, lastState.P2name) != -1 {
+				// we've seen these guys before, so we would have bet.
+				betHist = append(betHist, predictedWinner == winnerName)
+				estProfit = lastState.calcProfit(wager, predictedWinner)
+			}
+			err = db.Save(&fightHist{
+				Time:    int(time.Now().Unix()),
+				P1name:  lastState.P1name,
+				P2name:  lastState.P2name,
+				P1total: strToInt(lastState.P1total),
+				P2total: strToInt(lastState.P2total),
+				Winner:  lastState.Status,
+				Bet:     wager, // TODO: put the bet data in when you calculate profits later.
+				Profit:  estProfit,
+				X:       lastState.X,
+			})
+			if err != nil {
+				log.Println(err)
+			}
+
+			recordFight(lastState.P1name, lastState.P2name, lastState.Status)
+			// display a count of our accuracy over prediction history
+			//				totalPredicts = len(betHist)
+
+			// we want to take a sliding estimate of our accuracy.
+			var histSlice []bool
+
+			if len(betHist) > 50 {
+				histSlice = betHist[len(betHist)-50:]
+			} else {
+				histSlice = betHist
+			}
+
+			goodPredicts = 0.0
+			for _, item := range histSlice {
+				if item == true {
+					goodPredicts++
+				}
+			}
+
+			accuracy := float64(goodPredicts) * 100 / float64(len(histSlice))
+
+			currentBal = estProfit + currentBal
+			log.Printf("Balance updated: %d Change: %d @ last %d bets had %0.2f%% acc %d known players\n\n",
+				currentBal, estProfit, len(histSlice),
+				accuracy, len(ranks))
+
 		}
 	}
 
