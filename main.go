@@ -160,6 +160,25 @@ func diaf(err error) {
 
 	}
 }
+
+func t() string { // time in milliseconds, as a string. used by the API for something. who knows.
+	return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
+}
+
+func getData(client http.Client, url string) []byte {
+	req, err := http.NewRequest(
+		http.MethodGet,
+		url,
+		nil,
+	)
+	res, _ := client.Do(req)
+	if res.Body != nil {
+		defer res.Body.Close()
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	diaf(err)
+	return body
+}
 func main() {
 
 	// connect to the local database.
@@ -296,49 +315,26 @@ func main() {
 		log.Println(cookie.Name)
 	}
 
-	t := func() string { // time in milliseconds, as a string. used by the API for something. who knows.
-		return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
-	}
-
 	lastState := GameState{}
 	wager := 0
 	var predictedWinner string
 	updateState := func() {
 		// fetch json/gamestate
 		httpClient := http.Client{Timeout: time.Second * 10}
-
-		req, err := http.NewRequest(
-			http.MethodGet,
-			"https://www.saltybet.com/state.json",
-			nil,
-		)
-		if err != nil {
-			log.Println("-- ERROR: ", err)
-			return // bail out. We'll update next time.
-		}
-
-		res, err := httpClient.Do(req)
-		if err != nil {
-			log.Println("-- ERROR: ", err)
-			return // bail out. We'll update next time.
-		}
-
-		if res.Body != nil {
-			defer res.Body.Close()
-		}
-
-		body, err := ioutil.ReadAll(res.Body)
-		diaf(err)
-
 		var newState GameState
-		err = json.Unmarshal(body, &newState)
+		err = json.Unmarshal(getData(httpClient, "https://www.saltybet.com/state.json"), &newState)
 		if lastState.Status == newState.Status {
 			return // duplicate detected. bail out. We shouldn't see two statuses of the same.
 		}
 		diaf(err)
 		lastState = newState
 		log.Println(lastState)
-
+		switch lastState.Alert {
+		case "Tournament mode start":
+			log.Println("Tournament Mode Start!")
+		case "Exhibition mode start": // Tournament end, exhibition start.
+			log.Println("Exhibition mode start!")
+		}
 		switch lastState.Status {
 		case "open":
 
