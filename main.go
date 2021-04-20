@@ -330,12 +330,12 @@ func main() {
 		lastState = newState
 		log.Println(lastState)
 		switch lastState.Alert {
-		case "Tournament mode start":
+		case "Tournament mode start!":
 			log.Println("Tournament Mode Start!")
 			data := getData(httpClient, "http://www.saltybet.com/ajax_tournament_start.php")
 			currentBal = strToInt(string(data))
 			log.Println("Tournament Start Balance: ", currentBal)
-		case "Exhibition mode start": // Tournament end, exhibition start.
+		case "Exhibition mode start!": // Tournament end, exhibition start.
 			log.Println("Exhibition mode start!")
 			data := getData(httpClient, "http://www.saltybet.com/ajax_tournament_end.php")
 			currentBal = strToInt(string(data))
