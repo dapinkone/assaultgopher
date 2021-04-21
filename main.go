@@ -4,7 +4,7 @@ package main
 // https://blog.alexellis.io/golang-json-api-client/
 
 import (
-	frst "assaultgopher/tree"
+	"assaultgopher/tree"
 	"encoding/json"
 	"fmt"
 	"github.com/asdine/storm"
@@ -138,15 +138,15 @@ func main() {
 	diaf(err)
 	//	seen := make(map[string]bool)
 
-	waitstack := []frst.Fightpair{}
+	waitstack := []tree.Fightpair{}
 	for _, f := range fightsQuery {
 		if f.Winner == "1" {
-			waitstack = append(waitstack, frst.Fightpair{Wname: f.P1name, Lname: f.P2name})
+			waitstack = append(waitstack, tree.Fightpair{Wname: f.P1name, Lname: f.P2name})
 		} else {
-			waitstack = append(waitstack, frst.Fightpair{Wname: f.P2name, Lname: f.P1name})
+			waitstack = append(waitstack, tree.Fightpair{Wname: f.P2name, Lname: f.P1name})
 		}
 	}
-	myforest := frst.BuildForest(waitstack)
+	myforest := tree.BuildForest(waitstack)
 	var betHist []bool
 	var goodPredicts int
 	var totalPredicts int
@@ -285,6 +285,7 @@ func main() {
 				// We don't bet unless we've seen the player before.
 				// Otherwise we tend to leak money like a sieve.
 				log.Println("Unknown player, Not betting.")
+				wager = 0
 				return
 			}
 			if predictedWinner == lastState.P1name {
@@ -316,8 +317,7 @@ func main() {
 				Lname = lastState.P1name
 			}
 			estProfit := 0
-			if myforest.Cache[Lname] != nil &&
-				myforest.Cache[Wname] != nil {
+			if wager != 0 {
 				// we've seen these guys before, so we would have bet.
 				betHist = append(betHist, predictedWinner == Wname)
 				estProfit = lastState.calcProfit(wager, predictedWinner)
