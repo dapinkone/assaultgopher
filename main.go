@@ -4,8 +4,13 @@ package main
 // https://blog.alexellis.io/golang-json-api-client/
 
 import (
+	frst "assaultgopher/tree"
 	"encoding/json"
 	"fmt"
+	"github.com/asdine/storm"
+	"github.com/gocolly/colly/v2"
+	gosocketio "github.com/graarh/golang-socketio"
+	"github.com/graarh/golang-socketio/transport"
 	"io/ioutil"
 	"log"
 	"math"
@@ -14,11 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/asdine/storm"
-	"github.com/gocolly/colly/v2"
-	gosocketio "github.com/graarh/golang-socketio"
-	"github.com/graarh/golang-socketio/transport"
 )
 
 func strToInt(s string) int {
@@ -31,44 +31,6 @@ func strToInt(s string) int {
 	}
 }
 
-func Index(arr []string, item string) int {
-	for ind, j := range arr {
-		if j == item {
-			return ind
-		}
-	}
-	return -1
-}
-
-func Insert(s []string, k int, vs ...string) []string {
-	// credit https://github.com/golang/go/wiki/SliceTricks
-	if n := len(s) + len(vs); n <= cap(s) {
-		s2 := s[:n]
-		copy(s2[k+len(vs):], s[k:])
-		copy(s2[k:], vs)
-		return s2
-	}
-	s2 := make([]string, len(s)+len(vs))
-	copy(s2, s[:k])
-	copy(s2[k:], vs)
-	copy(s2[k+len(vs):], s[k:])
-	return s2
-}
-
-////////////////////////////////////////
-// some credit for the below to omotto @
-// https://stackoverflow.com/questions/43616676/moving-an-slice-item-from-one-position-to-another-in-go
-
-func remove(array []string, index int) []string {
-	return append(array[:index], array[index+1:]...)
-}
-
-func move(array []string, srcIndex int, dstIndex int) []string {
-	value := array[srcIndex]
-	return Insert(remove(array, srcIndex), dstIndex, value)
-}
-
-// </credit>
 /////////////////////////////////////////
 
 // get game state json from
@@ -171,73 +133,39 @@ func main() {
 	db, _ := storm.Open("./storm.db")
 	defer db.Close()
 
-	ranks := []string{} // players ranking
 	var fightsQuery []fightHist
 	err := db.All(&fightsQuery)
 	diaf(err)
-	seen := make(map[string]bool)
+	//	seen := make(map[string]bool)
 
-	recordFight := func(p1name string, p2name string, result string) {
-		var winner string
-		var loser string
-		if result == "1" {
-			winner, loser = p1name, p2name
+	waitstack := []frst.Fightpair{}
+	for _, f := range fightsQuery {
+		if f.Winner == "1" {
+			waitstack = append(waitstack, frst.Fightpair{Wname: f.P1name, Lname: f.P2name})
 		} else {
-			winner, loser = p2name, p1name
-		}
-		if seen[winner] && seen[loser] {
-			if Index(ranks, winner) < Index(ranks, loser) {
-				// move the winner to be past the loser.
-				ranks = move(ranks, Index(ranks, winner), Index(ranks, loser))
-			}
-			// elsewise, the order is already fine.
-		} else if seen[winner] {
-			// haven't seen loser. loser goes to bottom rank
-			// until they win something.
-			ranks = append([]string{loser}, ranks...)
-		} else if seen[loser] {
-			ranks = Insert(ranks, Index(ranks, loser), winner)
-		} else {
-			// both new fighters. Throw them on the bottom.
-			// They'll work their way up eventually.
-			ranks = append([]string{loser, winner}, ranks...)
-		}
-		seen[winner] = true
-		seen[loser] = true
-	}
-
-	predict := func(p1 string, p2 string) string {
-		// check our player ranking for who's "on top"
-		p1rank := Index(ranks, p1)
-		p2rank := Index(ranks, p2)
-		log.Printf("Predict: %s(%d) vs %s(%d)", p1, p1rank, p2, p2rank)
-		if p1rank == -1 || p2rank == -1 { // not sure. New players.
-			return ""
-		}
-		if p1rank >= p2rank {
-			return p1
-		} else {
-			return p2
+			waitstack = append(waitstack, frst.Fightpair{Wname: f.P2name, Lname: f.P1name})
 		}
 	}
+	myforest := frst.BuildForest(waitstack)
 	var betHist []bool
 	var goodPredicts int
 	var totalPredicts int
 	for _, fight := range fightsQuery {
 		// cycle through some fights we saw previously to build of a library.
-		predictedWinner := predict(fight.P1name, fight.P2name)
-		var wname string
+		predictedWinner := myforest.Predict(fight.P1name, fight.P2name)
+		var Wname, Lname string
 		switch fight.Winner {
 		case "1":
-			wname = fight.P1name
+			Wname = fight.P1name
 		case "2":
-			wname = fight.P2name
+			Wname = fight.P2name
 		}
 		if predictedWinner != "" {
-			betHist = append(betHist, predictedWinner == wname)
+			betHist = append(betHist, predictedWinner == Wname)
 		}
 		// display a count of our accuracy over prediction history
-		recordFight(fight.P1name, fight.P2name, fight.Winner)
+		//		recordFight(fight.P1name, fight.P2name, fight.Winner)
+		myforest.AddFight(Wname, Lname)
 	}
 	totalPredicts = len(betHist)
 
@@ -248,7 +176,7 @@ func main() {
 	}
 
 	accuracy := float64(goodPredicts) / float64(totalPredicts) * 100
-	log.Printf("Ranks built from %d data entries. %d players.\nBacklog expects %0.1f accuracy", len(fightsQuery), len(ranks), accuracy)
+	log.Printf("Ranks built from %d data entries. %d players.\nBacklog expects %0.1f accuracy", len(fightsQuery), len(myforest.Cache), accuracy)
 
 	// step 1: login
 	c := colly.NewCollector()
@@ -352,7 +280,7 @@ func main() {
 			// post request to /ajax_place_bet.php
 			wager = currentBal / 10
 			var selectedPlayer string
-			predictedWinner = predict(lastState.P1name, lastState.P2name)
+			predictedWinner = myforest.Predict(lastState.P1name, lastState.P2name)
 			if predictedWinner == "" { // Unkown player.
 				// We don't bet unless we've seen the player before.
 				// Otherwise we tend to leak money like a sieve.
@@ -378,17 +306,20 @@ func main() {
 		case "locked":
 			// bets are now closed.
 		case "1", "2": // fight's over.
-			var winnerName string
+			var Wname, Lname string
 			switch lastState.Status {
 			case "1":
-				winnerName = lastState.P1name
+				Wname = lastState.P1name
+				Lname = lastState.P2name
 			case "2":
-				winnerName = lastState.P2name
+				Wname = lastState.P2name
+				Lname = lastState.P1name
 			}
 			estProfit := 0
-			if Index(ranks, lastState.P1name) != -1 && Index(ranks, lastState.P2name) != -1 {
+			if myforest.Cache[Lname] != nil &&
+				myforest.Cache[Wname] != nil {
 				// we've seen these guys before, so we would have bet.
-				betHist = append(betHist, predictedWinner == winnerName)
+				betHist = append(betHist, predictedWinner == Wname)
 				estProfit = lastState.calcProfit(wager, predictedWinner)
 			}
 			err = db.Save(&fightHist{
@@ -406,7 +337,7 @@ func main() {
 				log.Println(err)
 			}
 
-			recordFight(lastState.P1name, lastState.P2name, lastState.Status)
+			myforest.AddFight(Wname, Lname)
 			// display a count of our accuracy over prediction history
 			//				totalPredicts = len(betHist)
 
@@ -431,7 +362,7 @@ func main() {
 			currentBal = estProfit + currentBal
 			log.Printf("Balance updated: %d Change: %d @ last %d bets had %0.2f%% acc %d known players\n\n",
 				currentBal, estProfit, len(histSlice),
-				accuracy, len(ranks))
+				accuracy, len(myforest.Cache))
 
 		}
 	}

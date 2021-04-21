@@ -1,4 +1,4 @@
-package main
+package tree
 
 // experimenting with different ranking strategies/implementations
 import (
@@ -7,28 +7,28 @@ import (
 	"log"
 )
 
-// type fightHist struct {
-// 	// struct for our use with stormDB
-// 	Time    int    `storm:"id"`    // unix timestamp used for ID
-// 	P1name  string `storm:"index"` // winner's name
-// 	P2name  string `storm:"index"` // loser's name
-// 	P1total int    // total amnt bet on winner
-// 	P2total int    // total amnt bet on loser
-// 	Bet     int    // amnt we bet
-// 	Profit  int    // amnt of profit made on that bet
-// 	Winner  string // either "1" or "2"
-// 	X       int    `storm:"index"` // ???
-// }
+type FightHist struct {
+	// struct for our use with stormDB
+	Time    int    `storm:"id"`    // unix timestamp used for ID
+	P1name  string `storm:"index"` // winner's name
+	P2name  string `storm:"index"` // loser's name
+	P1total int    // total amnt bet on winner
+	P2total int    // total amnt bet on loser
+	Bet     int    // amnt we bet
+	Profit  int    // amnt of profit made on that bet
+	Winner  string // either "1" or "2"
+	X       int    `storm:"index"` // ???
+}
 type Fightpair struct {
-	wname string
-	lname string
+	Wname string
+	Lname string
 }
 
-func (f *fightHist) getPair() Fightpair {
+func (f *FightHist) GetPair() Fightpair {
 	if f.Winner == "1" {
-		return Fightpair{wname: f.P1name, lname: f.P2name}
+		return Fightpair{Wname: f.P1name, Lname: f.P2name}
 	} else {
-		return Fightpair{wname: f.P1name, lname: f.P2name}
+		return Fightpair{Wname: f.P1name, Lname: f.P2name}
 	}
 }
 
@@ -37,7 +37,7 @@ type tree struct {
 	children []*tree
 }
 type forest struct {
-	cache map[string]*tree // look up players' trees by name. Speeds up search.
+	Cache map[string]*tree // look up players' trees by name. Speeds up search.
 	trees []*tree          // the base of our trees
 }
 
@@ -54,30 +54,30 @@ func (f forest) String() string {
 	return fmt.Sprintf(`[%s]`, res)
 }
 
-func (f *forest) AddFight(wname string, lname string) error {
-	if wname == "" || lname == "" {
+func (f *forest) AddFight(Wname string, Lname string) error {
+	if Wname == "" || Lname == "" {
 		return fmt.Errorf("InvalidArguments to AddFight")
 	}
 	// search forest and throw the match/branch up where it belongs
-	wtree := f.cache[wname]
+	wtree := f.Cache[Wname]
 
-	if f.cache[lname] == nil { // lname doesn't already have a tree
-		f.cache[lname] = &tree{value: lname}
+	if f.Cache[Lname] == nil { // Lname doesn't already have a tree
+		f.Cache[Lname] = &tree{value: Lname}
 	}
 
 	if wtree != nil {
-		if f.cache[lname].Find(wname) != nil {
+		if f.Cache[Lname].Find(Wname) != nil {
 			// this condition can lead to a stack overflow in some rare edge cases.
-			return fmt.Errorf("%s is already a descendent of %s. Discarding match.", wname, lname)
+			return fmt.Errorf("%s is already a descendent of %s. Discarding match.", Wname, Lname)
 		}
 
-		if wtree.Find(lname) == nil { // lname is not a descendent of wname
-			wtree.children = append(wtree.children, f.cache[lname])
+		if wtree.Find(Lname) == nil { // Lname is not a descendent of Wname
+			wtree.children = append(wtree.children, f.Cache[Lname])
 		}
-	} else { // wname is fresh. Never seen.
-		wtree := &tree{value: wname}
-		wtree.children = append(wtree.children, f.cache[lname])
-		f.cache[wname] = wtree
+	} else { // Wname is fresh. Never seen.
+		wtree := &tree{value: Wname}
+		wtree.children = append(wtree.children, f.Cache[Lname])
+		f.Cache[Wname] = wtree
 		if f.trees[0].value == "" { // we're the first tree. initialization is weird.
 			f.trees[0] = wtree
 		} else {
@@ -112,8 +112,8 @@ func (t *tree) Count() int {
 	return total
 }
 func (f *forest) Predict(p1name string, p2name string) string {
-	p1tree := f.cache[p1name]
-	p2tree := f.cache[p2name]
+	p1tree := f.Cache[p1name]
+	p2tree := f.Cache[p2name]
 	if p1tree != nil && p2tree != nil { // both exist.
 		if p1tree.Find(p2name) != nil { // p1 likely to win.
 			return p1name
@@ -167,7 +167,7 @@ func (t *tree) merge(partner *tree) {
 }
 func BuildForest(waitstack []Fightpair) forest {
 	var f forest
-	f.cache = make(map[string]*tree)
+	f.Cache = make(map[string]*tree)
 	f.trees = make([]*tree, 0)
 
 	for len(waitstack) > 0 {
@@ -184,13 +184,13 @@ func BuildForest(waitstack []Fightpair) forest {
 			match, waitstack = waitstack[0], waitstack[1:]
 		}
 		//		var success bool
-		err := f.AddFight(match.wname, match.lname)
+		err := f.AddFight(match.Wname, match.Lname)
 		if err != nil {
-			log.Printf("--- Error on Addfight(%s, %s) : %s", match.wname, match.lname, err)
+			log.Printf("--- Error on Addfight(%s, %s) : %s", match.Wname, match.Lname, err)
 		}
 		// if !success { // didn't fit in any tree. build a fresh one.
 		// 	var newtree tree // make a new tree to work on.
-		// 	err := newtree.AddFight(match.wname, match.lname)
+		// 	err := newtree.AddFight(match.Wname, match.Lname)
 		// 	if err != nil {
 		// 		break // invalid fight.
 		// 	}
@@ -240,14 +240,14 @@ func BuildForest(waitstack []Fightpair) forest {
 	for _, r := range f.trees {
 		manualcount += r.Count()
 	}
-	log.Printf("%d Trees built with %d players counted @ %d branches", len(f.trees), len(f.cache), manualcount)
+	log.Printf("%d Trees built with %d players counted @ %d branches", len(f.trees), len(f.Cache), manualcount)
 	return f
 }
 
-func ForestFromQuery(fightsQuery []fightHist) forest {
+func ForestFromQuery(fightsQuery []FightHist) forest {
 	waitstack := []Fightpair{}
 	for _, hist := range fightsQuery {
-		waitstack = append(waitstack, hist.getPair())
+		waitstack = append(waitstack, hist.GetPair())
 	}
 	return BuildForest(waitstack)
 }
@@ -256,7 +256,7 @@ func ForestFromQuery(fightsQuery []fightHist) forest {
 // 	db, _ := storm.Open("./storm.db")
 // 	defer db.Close()
 
-// 	var fightsQuery []fightHist
+// 	var fightsQuery []FightHist
 // 	err := db.All(&fightsQuery)
 // 	if err != nil {
 // 		log.Fatal(err)

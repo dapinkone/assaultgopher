@@ -1,4 +1,4 @@
-module saltybet
+module assaultgopher
 
 go 1.16
 

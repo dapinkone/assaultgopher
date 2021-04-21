@@ -32,12 +32,14 @@
 * ✔DONE check/update balance when match is called.
   CLOSED: [2021-03-31 Wed 00:33]
 *** #b, bal or balance is found in data[u]["b"], with data being the return of get("/zdata.json?t=" + ms) referenced/shown in updateData() of /j/www-cdn-jtvnw-x.js
-*** TODO Fetch/update data accordingly.
+*** ✔DONE Fetch/update data accordingly.
+	 CLOSED: [2021-04-21 Wed 03:23]
 *** Balance is now detected on main page, but need to update it when we win or lose.
 * TODO I vaguely remember ?id= being in a url somewhere. id is the sid from the websocket. see ~line 200.
 ** ✔DONE wait for new match announcement
    CLOSED: [2021-03-29 Mon 02:03]
-* support alternate game modes: tournament, exhibition based on Alert gamestate
+* ✔DONE support alternate game modes: tournament, exhibition based on Alert gamestate
+  CLOSED: [2021-04-21 Wed 03:23]
 ** tournament balance is found in /ajax_tournament_start.php
 ** exhibition mode something or other is at /ajax_tournament_end.php
 * what are values x, u, g, i, m and this other stuff?
@@ -57,9 +59,10 @@
 * ✔DONE BUG: possible rounding error in estProfit causes currBalance to drift over longer periods.
   CLOSED: [2021-04-04 Sun 11:13]
 * TODO BUG: occasionally SB reports the same victory twice. Our checks for this are not working, and the profit is likewise counted twice.
-* INWK Tournament mode
+* ✔DONE Tournament mode
+  CLOSED: [2021-04-21 Wed 03:24]
 ** They do some weird things with the balance here. It throws off our estimated balance.
-** INWK BUG: our betting strategy seems excessively nieve during tournaments.
+** TODO BUG: our betting strategy seems excessively nieve during tournaments.
    Perhaps with more/better data we can build a ranking tree or something?
 * INWK Exhibition mode
 ** Not useful for historical/ranking purposes, as team names are random user-submitted garbage?
@@ -68,3 +71,4 @@
 * TODO major refactor. Code feels like pasta.
 * TODO BUG: player names may not be unique(both players may have same name). This can lead to some mix ups somewhere, such as predictedWinner == winnerName
 * TODO BUG: appears to lock up after a couple days. Connection timeout or something?
+* TODO TESTS: Tests need to be flexible enough to handle unordered lists.
