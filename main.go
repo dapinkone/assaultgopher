@@ -171,12 +171,19 @@ func getData(client http.Client, url string) []byte {
 		url,
 		nil,
 	)
-	res, _ := client.Do(req)
+	res, err := client.Do(req)
+	if err != nil {
+		log.Printf("--- ERROR: %s @ %s", err, url)
+		return []byte{}
+	}
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
 	body, err := ioutil.ReadAll(res.Body)
-	diaf(err)
+	if err != nil {
+		log.Printf("--- ERROR: %s @ %s", err, url)
+		return []byte{}
+	}
 	return body
 }
 func main() {
@@ -323,26 +330,28 @@ func main() {
 		httpClient := http.Client{Timeout: time.Second * 10}
 		var newState GameState
 		err = json.Unmarshal(getData(httpClient, "https://www.saltybet.com/state.json"), &newState)
+		if err != nil {
+			log.Printf("--- ERROR: %s", err)
+			return
+		}
 		if lastState.Status == newState.Status {
 			return // duplicate detected. bail out. We shouldn't see two statuses of the same.
 		}
 		diaf(err)
 		lastState = newState
 		log.Println(lastState)
-		switch lastState.Alert {
-		case "Tournament mode start!":
-			log.Println("Tournament Mode Start!")
-			data := getData(httpClient, "http://www.saltybet.com/ajax_tournament_start.php")
-			currentBal = strToInt(string(data))
-			log.Println("Tournament Start Balance: ", currentBal)
-		case "Exhibition mode start!": // Tournament end, exhibition start.
-			log.Println("Exhibition mode start!")
-			data := getData(httpClient, "http://www.saltybet.com/ajax_tournament_end.php")
-			currentBal = strToInt(string(data))
-			log.Println("Tournament End Bal: ", currentBal)
-		}
 		switch lastState.Status {
 		case "open":
+			// because of tournament mode, we have to update our balance before and after tournament.
+			// the c.OnHTML handler will do that when we refresh the main page.
+			switch lastState.Alert {
+			case "Tournament mode start!":
+				log.Println("Tournament Mode Start!")
+				c.Visit("https://www.saltybet.com/") // pull the page for starting-tournament balance.
+			case "Exhibition mode start!": // Tournament end, exhibition start.
+				log.Println("Exhibition mode start!")
+				c.Visit("https://www.saltybet.com/") // pull the page to see what our balance is post-tournament
+			}
 
 			// place bet!
 			// post request to /ajax_place_bet.php

@@ -11,9 +11,12 @@
 *** The gamestate json status has info about open/closed/red won/blue won, but the window on win result is only a few seconds.
 *** likely more efficient to watch chat or something.
 *** TODO Create events for "new match", "match won", tournament start/end
-* TODO query a database for data about matches
-** TODO calculate odds based on historical data, before match starts
-** TODO Connect/query database implementation
+* ✔DONE query a database for data about matches
+  CLOSED: [2021-04-20 Tue 03:41]
+** ✔DONE calculate odds based on historical data, before match starts
+	CLOSED: [2021-04-20 Tue 03:41]
+** ✔DONE Connect/query database implementation
+	CLOSED: [2021-04-20 Tue 03:41]
 * ✔DONE place bet
   CLOSED: [2021-03-29 Mon 02:00]
 * ✔DONE calculate odds ratio of a match(calc'd from player totals)
@@ -53,13 +56,12 @@
   2021/04/03 Haven't seen this error in some time. I previously increaed the Client.Timeout limit. That may have been the fix.
 * ✔DONE BUG: possible rounding error in estProfit causes currBalance to drift over longer periods.
   CLOSED: [2021-04-04 Sun 11:13]
-* ✔DONE BUG: occasionally SB reports the same victory twice. Our checks for this are not working, and the profit is likewise counted twice.
-  CLOSED: [2021-04-05 Mon 19:30]
-* TODO Tournament mode
+* TODO BUG: occasionally SB reports the same victory twice. Our checks for this are not working, and the profit is likewise counted twice.
+* INWK Tournament mode
 ** They do some weird things with the balance here. It throws off our estimated balance.
-** TODO BUG: our betting strategy seems excessively nieve during tournaments.
+** INWK BUG: our betting strategy seems excessively nieve during tournaments.
    Perhaps with more/better data we can build a ranking tree or something?
-* TODO Exhibition mode
+* INWK Exhibition mode
 ** Not useful for historical/ranking purposes, as team names are random user-submitted garbage?
 * INWK Implement betting/ranking strategy
 * TODO support for "bailout" detection. Go all in if our balance is below where we'll be bailed out.
