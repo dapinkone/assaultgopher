@@ -165,27 +165,6 @@ func t() string { // time in milliseconds, as a string. used by the API for some
 	return strconv.Itoa(int(time.Now().UnixNano()) / int(time.Millisecond))
 }
 
-func getData(client http.Client, url string) []byte {
-	req, err := http.NewRequest(
-		http.MethodGet,
-		url,
-		nil,
-	)
-	res, err := client.Do(req)
-	if err != nil {
-		log.Printf("--- ERROR: %s @ %s", err, url)
-		return []byte{}
-	}
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Printf("--- ERROR: %s @ %s", err, url)
-		return []byte{}
-	}
-	return body
-}
 func main() {
 
 	// connect to the local database.
@@ -329,9 +308,25 @@ func main() {
 		// fetch json/gamestate
 		httpClient := http.Client{Timeout: time.Second * 10}
 		var newState GameState
-		err = json.Unmarshal(getData(httpClient, "https://www.saltybet.com/state.json"), &newState)
+		url := "https://www.saltybet.com/state.json"
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		res, err := httpClient.Do(req)
 		if err != nil {
-			log.Printf("--- ERROR: %s", err)
+			log.Printf("--- ERROR: %s : %s", url, err)
+			return
+		}
+		if res.Body != nil {
+			defer res.Body.Close()
+		}
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			log.Printf("--- ERROR: %s : %s : %s", url, err, body)
+			return
+		}
+
+		err = json.Unmarshal(body, &newState)
+		if err != nil {
+			log.Printf("--- ERROR: %s on %v", err, body)
 			return
 		}
 		if lastState.Status == newState.Status {
