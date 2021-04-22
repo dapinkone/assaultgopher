@@ -281,17 +281,29 @@ func main() {
 			wager = currentBal / 10
 			var selectedPlayer string
 			predictedWinner = myforest.Predict(lastState.P1name, lastState.P2name)
-			if predictedWinner == "" { // Unknown player.
+			switch predictedWinner {
+			case lastState.P1name:
+				selectedPlayer = "player1"
+			case lastState.P2name:
+				selectedPlayer = "player2"
+			default: // Unknown player.
 				// We don't bet unless we've seen the player before.
 				// Otherwise we tend to leak money like a sieve.
-				log.Println("Unknown player, Not betting.")
+				p1known := (myforest.Cache[lastState.P1name] != nil)
+				p2known := (myforest.Cache[lastState.P2name] != nil)
+				if p1known && p2known {
+					log.Printf("Players %s , %s : no relationship found. No bet.",
+						lastState.P1name, lastState.P2name)
+				} else if p1known && !p2known {
+					log.Printf("Player %s unknown. No bet.", lastState.P2name)
+				} else if !p1known && p2known {
+					log.Printf("Player %s unknown. No bet.", lastState.P1name)
+				} else if !p1known && !p2known {
+					log.Printf("Players %s , %s : Both unknown. No bet.",
+						lastState.P1name, lastState.P2name)
+				}
 				wager = 0
 				return
-			}
-			if predictedWinner == lastState.P1name {
-				selectedPlayer = "player1"
-			} else {
-				selectedPlayer = "player2"
 			}
 
 			c.Post(
