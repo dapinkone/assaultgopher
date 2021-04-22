@@ -84,6 +84,7 @@ func (f *forest) AddFight(Wname string, Lname string) error {
 			f.trees = append(f.trees, wtree)
 		}
 	}
+	log.Printf("Fight %s, %s added.\n", Wname, Lname)
 	return nil
 }
 func (t *tree) Find(name string) *tree { // better implementation possible? DFS currently.

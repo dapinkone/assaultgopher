@@ -10,7 +10,7 @@ func fightPairFromStr(s string) Fightpair {
 	// Note: real data has spaces in the names. fix this?
 	tmp := strings.Split(s, " ")
 	w, l := tmp[0], tmp[1]
-	return Fightpair{wname: w, lname: l}
+	return Fightpair{w, l}
 }
 
 type test struct {

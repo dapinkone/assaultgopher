@@ -281,7 +281,7 @@ func main() {
 			wager = currentBal / 10
 			var selectedPlayer string
 			predictedWinner = myforest.Predict(lastState.P1name, lastState.P2name)
-			if predictedWinner == "" { // Unkown player.
+			if predictedWinner == "" { // Unknown player.
 				// We don't bet unless we've seen the player before.
 				// Otherwise we tend to leak money like a sieve.
 				log.Println("Unknown player, Not betting.")
