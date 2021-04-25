@@ -53,6 +53,10 @@ func (f forest) String() string {
 	}
 	return fmt.Sprintf(`[%s]`, res)
 }
+func (f *forest) Seen(p string) bool {
+	// return true if we've seen the player before.
+	return f.Cache[p] != nil
+}
 
 func (f *forest) AddFight(Wname string, Lname string) error {
 	if Wname == "" || Lname == "" {
@@ -60,10 +64,9 @@ func (f *forest) AddFight(Wname string, Lname string) error {
 	}
 	// search forest and throw the match/branch up where it belongs
 	wtree := f.Cache[Wname]
-
 	if f.Cache[Lname] == nil { // Lname doesn't already have a tree
 		f.Cache[Lname] = &tree{value: Lname}
-	}
+	} // TODO: remove ltree from toplevel trees if it's in there.
 
 	if wtree != nil {
 		if f.Cache[Lname].Find(Wname) != nil {

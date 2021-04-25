@@ -152,7 +152,7 @@ func main() {
 	var totalPredicts int
 	for _, fight := range fightsQuery {
 		// cycle through some fights we saw previously to build of a library.
-		predictedWinner := myforest.Predict(fight.P1name, fight.P2name)
+		//		predictedWinner := myforest.Predict(fight.P1name, fight.P2name)
 		var Wname, Lname string
 		switch fight.Winner {
 		case "1":
@@ -160,9 +160,9 @@ func main() {
 		case "2":
 			Wname = fight.P2name
 		}
-		if predictedWinner != "" {
-			betHist = append(betHist, predictedWinner == Wname)
-		}
+		// if predictedWinner != "" {
+		// 	betHist = append(betHist, predictedWinner == Wname)
+		// }
 		// display a count of our accuracy over prediction history
 		//		recordFight(fight.P1name, fight.P2name, fight.Winner)
 		myforest.AddFight(Wname, Lname)
@@ -354,26 +354,26 @@ func main() {
 			//				totalPredicts = len(betHist)
 
 			// we want to take a sliding estimate of our accuracy.
-			var histSlice []bool
+			// var histSlice []bool
 
-			if len(betHist) > 50 {
-				histSlice = betHist[len(betHist)-50:]
-			} else {
-				histSlice = betHist
-			}
+			// if len(betHist) > 50 {
+			// 	histSlice = betHist[len(betHist)-50:]
+			// } else {
+			// 	histSlice = betHist
+			// }
 
 			goodPredicts = 0.0
-			for _, item := range histSlice {
+			for _, item := range betHist { //histSlice {
 				if item == true {
 					goodPredicts++
 				}
 			}
 
-			accuracy := float64(goodPredicts) * 100 / float64(len(histSlice))
+			accuracy := float64(goodPredicts) * 100 / float64(len(betHist)) //histSlice))
 
 			currentBal = estProfit + currentBal
 			log.Printf("Balance updated: %d Change: %d @ last %d bets had %0.2f%% acc %d known players\n\n",
-				currentBal, estProfit, len(histSlice),
+				currentBal, estProfit, len(betHist), //histSlice),
 				accuracy, len(myforest.Cache))
 
 		}
