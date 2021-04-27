@@ -56,18 +56,18 @@ func TestTreeCreation(t *testing.T) {
 	}
 }
 
-func TestTreeMerge(t *testing.T) {
-	t.Run("Merging trees", func(t *testing.T) {
-		var a, b *tree
-		a = &tree{value: "A", children: []*tree{&tree{value: "B"}}}
-		b = &tree{value: "A", children: []*tree{&tree{value: "C"}}}
-		a.merge(b)
-		got := fmt.Sprintf("%s", a.String())
-		optionA := `{"A":["C","B"]}`
-		optionB := `{"A":["B","C"]}`
-		if got != optionA && got != optionB {
-			t.Errorf("wanted %s\tgot %s", optionA, got)
-		}
-	})
-
-}
+// func TestTreeMerge(t *testing.T) {
+// 	t.Run("Merging trees", func(t *testing.T) {
+// 		var a, b *tree
+// 		a = &tree{value: "A", children: []*tree{&tree{value: "B"}}}
+// 		b = &tree{value: "A", children: []*tree{&tree{value: "C"}}}
+// 		a.merge(b)
+// 		got := fmt.Sprintf("%s", a.String())
+// 		optionA := `{"A":["C","B"]}`
+// 		optionB := `{"A":["B","C"]}`
+// 		if got != optionA && got != optionB {
+// 			t.Errorf("wanted %s\tgot %s", optionA, got)
+// 		}
+// 	})
+//
+//}

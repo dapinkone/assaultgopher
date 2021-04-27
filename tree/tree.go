@@ -78,11 +78,9 @@ func (f *forest) AddFight(Wname string, Lname string) error {
 		if wtree.Find(Lname) != nil {
 			// Lname is already a descendant. No duplicate children.
 			return fmt.Errorf("%s is already a descendent of %s. Discarding match.", Lname, Wname)
-		}
-		if wtree.Find(Lname) == nil { // Lname is not a descendent of Wname
+		} else { // Lname is not a descendent of Wname
 			wtree.children = append(wtree.children, f.Cache[Lname])
 		}
-
 	} else { // Wname is fresh. Never seen.
 		wtree := &tree{value: Wname}
 		wtree.children = append(wtree.children, f.Cache[Lname])
@@ -102,8 +100,8 @@ func (f *forest) AddFight(Wname string, Lname string) error {
 			}
 		}
 		if rmIndex != -1 {
-			f.trees = append(
-				f.trees[:rmIndex], f.trees[rmIndex+1:]...) // there's gotta be a better way :(
+			// there's gotta be a better way :(
+			f.trees = append(f.trees[:rmIndex], f.trees[rmIndex+1:]...)
 		}
 	}
 
@@ -180,25 +178,26 @@ func (t tree) String() string {
 		return fmt.Sprintf(`"%s"`, t.value)
 	}
 }
-func (t *tree) merge(partner *tree) {
-	// merges two trees' children together
-	// Possible memory leak issue?
-	t.children = append(t.children, partner.children...)
-	// filter t.children for uniqueness
-	s := make(map[string]*tree)
-	for _, c := range t.children {
-		if s[c.value] != nil {
-			// not unique. Merge current child with prev. seen.
-			s[c.value].merge(c)
-		} else {
-			s[c.value] = c
-		}
-	}
-	t.children = make([]*tree, 0)
-	for _, v := range s {
-		t.children = append(t.children, v)
-	}
-}
+
+// func (t *tree) merge(partner *tree) {
+// 	// merges two trees' children together
+// 	// Possible memory leak issue?
+// 	t.children = append(t.children, partner.children...)
+// 	// filter t.children for uniqueness
+// 	s := make(map[string]*tree)
+// 	for _, c := range t.children {
+// 		if s[c.value] != nil {
+// 			// not unique. Merge current child with prev. seen.
+// 			s[c.value].merge(c)
+// 		} else {
+// 			s[c.value] = c
+// 		}
+// 	}
+// 	t.children = make([]*tree, 0)
+// 	for _, v := range s {
+// 		t.children = append(t.children, v)
+// 	}
+// }
 func BuildForest(waitstack []Fightpair) forest {
 	var f forest
 	f.Cache = make(map[string]*tree)
