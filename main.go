@@ -300,7 +300,7 @@ func main() {
 						lastState.P1name, lastState.P2name)
 				}
 			}
-			if selectedPlayer == "" { // bet.
+			if selectedPlayer == "" { // no bet.
 				wager = 0
 				return
 			}
