@@ -217,65 +217,12 @@ func BuildForest(waitstack []Fightpair) forest {
 		default:
 			match, waitstack = waitstack[0], waitstack[1:]
 		}
-		//		var success bool
 		err := f.AddFight(match.Wname, match.Lname)
 		if err != nil {
 			log.Printf("--- Error on Addfight(%s, %s) : %s", match.Wname, match.Lname, err)
 		}
-		// if !success { // didn't fit in any tree. build a fresh one.
-		// 	var newtree tree // make a new tree to work on.
-		// 	err := newtree.AddFight(match.Wname, match.Lname)
-		// 	if err != nil {
-		// 		break // invalid fight.
-		// 	}
-		// 	f.trees = append(f.trees, &newtree)
-		// }
 	}
-	log.Printf("%d trees.\n", len(f.trees))
-	// if len(f.trees) > 1 {
-	// 	// if there's more than one tree, lets have a look back through
-	// 	// to combine trees if a top-level player of a later tree is now child
-	// 	// of an earlier tree.
-	// 	var removeQ []int
-	// 	for i, cr := range f.trees { // offset to favor a large first tree.
-	// 		topplayer := cr.value
-	// 		var newParent *tree
-	// 		for j, tr := range f.trees {
-	// 			if i == j { // not gonna be our own parent.
-	// 				continue
-	// 			}
-	// 			newParent = tr.Find(topplayer)
-	// 			if newParent != nil {
-	// 				break // we found our new parents!
-	// 			}
-	// 		}
-	// 		if newParent != nil {
-	// 			//	log.Printf("New parent of %v found: %v", cr, newParent)
-	// 			newParent.merge(cr)
-	// 			removeQ = append(removeQ, i)
-	// 		}
-	// 	}
-	// 	// reverse the indexes queue so we don't throw our numbers off
-	// 	// when we start clearing them out.
-	// 	for i := len(removeQ)/2 - 1; i >= 0; i-- {
-	// 		opp := len(removeQ) - 1 - i
-	// 		removeQ[i], removeQ[opp] = removeQ[opp], removeQ[i]
-	// 	}
-	// 	//		log.Println(removeQ)
-	// 	for _, i := range removeQ {
-	// 		// now delete all values f.trees[i] as they've been merged elsewhere.
-	// 		copy(f.trees[i:], f.trees[i+1:])
-	// 		f.trees[len(f.trees)-1] = nil
-	// 		f.trees = f.trees[:len(f.trees)-1]
-	// 	}
-	// 	return f
-	// }
-
-	manualcount := 0
-	for _, r := range f.trees {
-		manualcount += r.Count()
-	}
-	log.Printf("%d Trees built with %d players counted, %d branches.", len(f.trees), len(f.Cache), manualcount)
+	log.Printf("%d Trees built with %d players counted.", len(f.trees), len(f.Cache))
 	return f
 }
 
