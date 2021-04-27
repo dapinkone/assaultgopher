@@ -287,25 +287,37 @@ func main() {
 			case lastState.P2name:
 				selectedPlayer = "player2"
 			default: // Unknown player.
-				// We don't bet unless we've seen the player before.
-				// Otherwise we tend to leak money like a sieve.
+				// If our relation trees haven't predicted a relationship win,
+				// we go by depth of tree, or no bet.
 				p1known := (myforest.Cache[lastState.P1name] != nil)
 				p2known := (myforest.Cache[lastState.P2name] != nil)
 				if p1known && p2known {
-					log.Printf("Players %s , %s : no relationship found. No bet.",
-						lastState.P1name, lastState.P2name)
+					p1descendents := myforest.Cache[lastState.P1name].Count()
+					p2descendents := myforest.Cache[lastState.P2name].Count()
+					if p1descendents >= p2descendents {
+						selectedPlayer = "player1"
+						predictedWinner = lastState.P1name
+					} else {
+						selectedPlayer = "player2"
+						predictedWinner = lastState.P2name
+					}
+					log.Printf("%s has more descendents(%d vs %d), betting %s",
+						predictedWinner, p1descendents, p2descendents, predictedWinner)
 				} else if p1known && !p2known {
 					log.Printf("Player %s unknown. No bet.", lastState.P2name)
 				} else if !p1known && p2known {
 					log.Printf("Player %s unknown. No bet.", lastState.P1name)
 				} else if !p1known && !p2known {
-					log.Printf("Players %s , %s : Both unknown. No bet.",
+					log.Printf("Players %s, %s : Both unknown. No bet.",
 						lastState.P1name, lastState.P2name)
 				}
+				// wager = 0
+				// return
+			}
+			if selectedPlayer == "" {
 				wager = 0
 				return
 			}
-
 			c.Post(
 				"https://www.saltybet.com/ajax_place_bet.php",
 				map[string]string{
