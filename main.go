@@ -149,34 +149,20 @@ func main() {
 	myforest := tree.BuildForest(waitstack)
 	var betHist []bool
 	var goodPredicts int
-	var totalPredicts int
-	for _, fight := range fightsQuery {
-		// cycle through some fights we saw previously to build of a library.
-		//		predictedWinner := myforest.Predict(fight.P1name, fight.P2name)
-		var Wname, Lname string
-		switch fight.Winner {
-		case "1":
-			Wname = fight.P1name
-		case "2":
-			Wname = fight.P2name
-		}
-		// if predictedWinner != "" {
-		// 	betHist = append(betHist, predictedWinner == Wname)
-		// }
-		// display a count of our accuracy over prediction history
-		//		recordFight(fight.P1name, fight.P2name, fight.Winner)
-		myforest.AddFight(Wname, Lname)
-	}
-	totalPredicts = len(betHist)
-
-	for _, item := range betHist {
-		if item == true {
-			goodPredicts++
-		}
-	}
-
-	accuracy := float64(goodPredicts) / float64(totalPredicts) * 100
-	log.Printf("Ranks built from %d data entries. %d players.\nBacklog expects %0.1f accuracy", len(fightsQuery), len(myforest.Cache), accuracy)
+	//	var totalPredicts int
+	// for _, fight := range fightsQuery {
+	// 	// cycle through some fights we saw previously to build of a library.
+	// 	//		predictedWinner := myforest.Predict(fight.P1name, fight.P2name)
+	// 	var Wname, Lname string
+	// 	switch fight.Winner {
+	// 	case "1":
+	// 		Wname = fight.P1name
+	// 	case "2":
+	// 		Wname = fight.P2name
+	// 	}
+	// 	//myforest.AddFight(Wname, Lname)
+	// }
+	log.Printf("Ranks built from %d data entries. %d players.\n", len(fightsQuery), len(myforest.Cache))
 
 	// step 1: login
 	c := colly.NewCollector()
@@ -289,12 +275,14 @@ func main() {
 			default: // Unknown player.
 				// If our relation trees haven't predicted a relationship win,
 				// we go by depth of tree, or no bet.
-				p1known := (myforest.Cache[lastState.P1name] != nil)
-				p2known := (myforest.Cache[lastState.P2name] != nil)
+				p1known := myforest.Seen(lastState.P1name)
+				p2known := myforest.Seen(lastState.P2name)
 				if p1known && p2known {
-					p1descendents := myforest.Cache[lastState.P1name].Count()
-					p2descendents := myforest.Cache[lastState.P2name].Count()
-					if p1descendents >= p2descendents {
+					p1descendents := myforest.Descendants(lastState.P1name)
+					p2descendents := myforest.Descendants(lastState.P1name)
+					if p1descendents == p2descendents {
+						break // toss-up. drop out of the switch statement.
+					} else if p1descendents > p2descendents {
 						selectedPlayer = "player1"
 						predictedWinner = lastState.P1name
 					} else {
@@ -311,10 +299,8 @@ func main() {
 					log.Printf("Players %s, %s : Both unknown. No bet.",
 						lastState.P1name, lastState.P2name)
 				}
-				// wager = 0
-				// return
 			}
-			if selectedPlayer == "" {
+			if selectedPlayer == "" { // bet.
 				wager = 0
 				return
 			}

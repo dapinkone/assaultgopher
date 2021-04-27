@@ -58,6 +58,8 @@ func (f *forest) Seen(p string) bool {
 	return f.Cache[p] != nil
 }
 
+var fightcount int
+
 func (f *forest) AddFight(Wname string, Lname string) error {
 	if Wname == "" || Lname == "" {
 		return fmt.Errorf("InvalidArguments to AddFight")
@@ -66,17 +68,21 @@ func (f *forest) AddFight(Wname string, Lname string) error {
 	wtree := f.Cache[Wname]
 	if f.Cache[Lname] == nil { // Lname doesn't already have a tree
 		f.Cache[Lname] = &tree{value: Lname}
-	} // TODO: remove ltree from toplevel trees if it's in there.
+	}
 
 	if wtree != nil {
 		if f.Cache[Lname].Find(Wname) != nil {
 			// this condition can lead to a stack overflow in some rare edge cases.
 			return fmt.Errorf("%s is already a descendent of %s. Discarding match.", Wname, Lname)
 		}
-
+		if wtree.Find(Lname) != nil {
+			// Lname is already a descendant. No duplicate children.
+			return fmt.Errorf("%s is already a descendent of %s. Discarding match.", Lname, Wname)
+		}
 		if wtree.Find(Lname) == nil { // Lname is not a descendent of Wname
 			wtree.children = append(wtree.children, f.Cache[Lname])
 		}
+
 	} else { // Wname is fresh. Never seen.
 		wtree := &tree{value: Wname}
 		wtree.children = append(wtree.children, f.Cache[Lname])
@@ -87,7 +93,22 @@ func (f *forest) AddFight(Wname string, Lname string) error {
 			f.trees = append(f.trees, wtree)
 		}
 	}
-	log.Printf("Fight %s, %s added.\n", Wname, Lname)
+	if f.Seen(Lname) { // remove ltree from toplevel trees if it's in there.
+		rmIndex := -1
+		for i, t := range f.trees {
+			if t.value == Lname {
+				rmIndex = i
+				break
+			}
+		}
+		if rmIndex != -1 {
+			f.trees = append(
+				f.trees[:rmIndex], f.trees[rmIndex+1:]...) // there's gotta be a better way :(
+		}
+	}
+
+	fightcount++
+	log.Printf("%d Fight %s, %s added.\n", fightcount, Wname, Lname)
 	return nil
 }
 func (t *tree) Find(name string) *tree { // better implementation possible? DFS currently.
@@ -115,6 +136,15 @@ func (t *tree) Count() int {
 	}
 	return total
 }
+func (f *forest) Descendants(pname string) int {
+	// return the number of Descendants an player has.
+	c := f.Cache[pname]
+	if c != nil {
+		return c.Count() - 1
+	}
+	return 0
+}
+
 func (f *forest) Predict(p1name string, p2name string) string {
 	p1tree := f.Cache[p1name]
 	p2tree := f.Cache[p2name]
@@ -183,7 +213,7 @@ func BuildForest(waitstack []Fightpair) forest {
 		case 0:
 			break
 		case 1:
-			match, waitstack = waitstack[0], nil
+			match, waitstack = waitstack[0], []Fightpair{}
 		default:
 			match, waitstack = waitstack[0], waitstack[1:]
 		}
@@ -201,50 +231,51 @@ func BuildForest(waitstack []Fightpair) forest {
 		// 	f.trees = append(f.trees, &newtree)
 		// }
 	}
-	if len(f.trees) > 1 {
-		// if there's more than one tree, lets have a look back through
-		// to combine trees if a top-level player of a later tree is now child
-		// of an earlier tree.
-		var removeQ []int
-		for i, cr := range f.trees[1:] { // offset to favor a large first tree.
-			topplayer := cr.value
-			var newParent *tree
-			for j, tr := range f.trees {
-				if i+1 == j { // not gonna be our own parent.
-					continue
-				}
-				newParent = tr.Find(topplayer)
-				if newParent != nil {
-					break // we found our new parents!
-				}
-			}
-			if newParent != nil {
-				//	log.Printf("New parent of %v found: %v", cr, newParent)
-				newParent.merge(cr)
-				removeQ = append(removeQ, i+1)
-			}
-		}
-		// reverse the indexes queue so we don't throw our numbers off
-		// when we start clearing them out.
-		for i := len(removeQ)/2 - 1; i >= 0; i-- {
-			opp := len(removeQ) - 1 - i
-			removeQ[i], removeQ[opp] = removeQ[opp], removeQ[i]
-		}
-		//		log.Println(removeQ)
-		for _, i := range removeQ {
-			// now delete all values f.trees[i] as they've been merged elsewhere.
-			copy(f.trees[i:], f.trees[i+1:])
-			f.trees[len(f.trees)-1] = nil
-			f.trees = f.trees[:len(f.trees)-1]
-		}
-		return f
-	}
+	log.Printf("%d trees.\n", len(f.trees))
+	// if len(f.trees) > 1 {
+	// 	// if there's more than one tree, lets have a look back through
+	// 	// to combine trees if a top-level player of a later tree is now child
+	// 	// of an earlier tree.
+	// 	var removeQ []int
+	// 	for i, cr := range f.trees { // offset to favor a large first tree.
+	// 		topplayer := cr.value
+	// 		var newParent *tree
+	// 		for j, tr := range f.trees {
+	// 			if i == j { // not gonna be our own parent.
+	// 				continue
+	// 			}
+	// 			newParent = tr.Find(topplayer)
+	// 			if newParent != nil {
+	// 				break // we found our new parents!
+	// 			}
+	// 		}
+	// 		if newParent != nil {
+	// 			//	log.Printf("New parent of %v found: %v", cr, newParent)
+	// 			newParent.merge(cr)
+	// 			removeQ = append(removeQ, i)
+	// 		}
+	// 	}
+	// 	// reverse the indexes queue so we don't throw our numbers off
+	// 	// when we start clearing them out.
+	// 	for i := len(removeQ)/2 - 1; i >= 0; i-- {
+	// 		opp := len(removeQ) - 1 - i
+	// 		removeQ[i], removeQ[opp] = removeQ[opp], removeQ[i]
+	// 	}
+	// 	//		log.Println(removeQ)
+	// 	for _, i := range removeQ {
+	// 		// now delete all values f.trees[i] as they've been merged elsewhere.
+	// 		copy(f.trees[i:], f.trees[i+1:])
+	// 		f.trees[len(f.trees)-1] = nil
+	// 		f.trees = f.trees[:len(f.trees)-1]
+	// 	}
+	// 	return f
+	// }
 
 	manualcount := 0
 	for _, r := range f.trees {
 		manualcount += r.Count()
 	}
-	log.Printf("%d Trees built with %d players counted @ %d branches", len(f.trees), len(f.Cache), manualcount)
+	log.Printf("%d Trees built with %d players counted, %d branches.", len(f.trees), len(f.Cache), manualcount)
 	return f
 }
 
