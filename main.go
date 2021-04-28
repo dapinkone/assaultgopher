@@ -279,8 +279,9 @@ func main() {
 				p2known := myforest.Seen(lastState.P2name)
 				if p1known && p2known {
 					p1descendents := myforest.Descendants(lastState.P1name)
-					p2descendents := myforest.Descendants(lastState.P1name)
+					p2descendents := myforest.Descendants(lastState.P2name)
 					if p1descendents == p2descendents {
+						log.Printf("Tossup(%d v %d). No bet.\n", p1descendents, p2descendents)
 						break // toss-up. drop out of the switch statement.
 					} else if p1descendents > p2descendents {
 						selectedPlayer = "player1"
