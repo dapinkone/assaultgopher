@@ -80,6 +80,8 @@ func (g *GameState) calcProfit(wager int, player string) int {
 	}
 }
 
+var startTime time.Time
+
 func (g GameState) String() string {
 	/* implements the stringer interface on GameState, so we can use standard print stuff on it
 	   with our desired custom output */
@@ -94,8 +96,8 @@ func (g GameState) String() string {
 			return "Bets are " + g.Status
 		}
 	}()
-	a := fmt.Sprintf("'%v' '%v' (%.1f:1) $%v $%v %v  x:%v\t%v", // TODO: fix this format string.
-		g.P1name, g.P2name, odds, g.P1total, g.P2total, betstatus, g.X, g.Remaining,
+	a := fmt.Sprintf("%s |\t'%v' '%v' (%.1f:1) $%v $%v %v  x:%v\t%v", // TODO: fix this format string.
+		time.Since(startTime), g.P1name, g.P2name, odds, g.P1total, g.P2total, betstatus, g.X, g.Remaining,
 	)
 	if g.Alert != "" {
 		a += fmt.Sprintf(" Alert: %s", g.Alert)
@@ -137,6 +139,8 @@ func main() {
 	err := db.All(&fightsQuery)
 	diaf(err)
 	//	seen := make(map[string]bool)
+
+	startTime = time.Now()
 
 	waitstack := []tree.Fightpair{}
 	for _, f := range fightsQuery {
